@@ -1,0 +1,78 @@
+{
+	"nodes": [
+		{
+			"ip": "172.16.1.10",
+			"snd_port0": "4950",
+			"snd_port1": "4951",
+			"files": [
+				{
+					"name": "n0.f1.txt",
+					"data": [
+						{
+							"start_off": 0,
+							"end_off": 200
+						},
+						{
+							"start_off": 500,
+							"end_off": 800
+						}
+					]
+				},
+				{
+					"name": "n1.f1.txt",
+					"data": [
+						{
+							"start_off": 0,
+							"end_off": 8
+						}
+					]
+				}
+			]
+		},
+		{
+			"ip": "172.16.1.11",
+			"snd_port0": "4950",
+			"snd_port1": "4951",
+			"files": [
+				{
+					"name": "n0.f1.txt",
+					"data": [
+						{
+							"start_off": 0,
+							"end_off": 800
+						}
+					]
+				},
+				{
+					"name": "n1.f1.txt",
+					"data": [
+						{
+							"start_off": 0,
+							"end_off": 9
+						}
+					]
+				}
+			]
+		}
+	],
+	"files": [
+		{
+			"name": "n0.f1.txt",
+			"data": [
+				{
+					"start_off": 0,
+					"end_off": 800
+				}
+			]
+		},
+		{
+			"name": "n1.f1.txt",
+			"data": [
+				{
+					"start_off": 0,
+					"end_off": 9
+				}
+			]
+		}
+	]
+}
