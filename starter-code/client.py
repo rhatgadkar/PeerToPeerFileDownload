@@ -91,12 +91,80 @@ def get_missing_file_data(node_number, metadata):
             to_return[file_name] = missing_data_tuples
     return to_return
 
+def get_nodes_with_missing_files(node_number, metadata, missing_files):
+    """
+    Get a dict of nodes that contain the missing files and missing bytes of
+    files for a given node.
+
+    e.g., missing_files = {'n1.f1.txt': [(9, 9)], 'n0.f1.txt': [(201, 400)]}
+          for node 0, and node 1 contains these files with the provided byte
+          ranges:
+          {'n1.f1.txt': [(0, 9)], 'n0.f1.txt': [(0, 400)]}
+    The function will return:
+    { 1: {'n1.f1.txt': [(9, 9)], 'n0.f1.txt': [(201, 400)]} }
+    """
+
+    def get_byte_range_from_node(all_offsets, curr_offset):
+        """
+        Get a tuple within all_offsets that contains a byte range within
+        curr_offset.
+
+        e.g., all_offsets = [(500, 600), (700, 1000)] and
+              curr_offset = (500, 550)
+        The function will return: (500, 550)
+
+        e.g., all_offsets = [(500, 699), (700, 1000)] and
+              curr_offset = (600, 800)
+        The function will return: (600, 699)
+        """
+        for offset in all_offsets:
+            start_offset = None
+            end_offset = None
+            if curr_offset[0] >= offset[0] and curr_offset[0] <= offset[1]:
+                start_offset = curr_offset[0]
+            if offset[1] <= curr_offset[1] and start_offset:
+                end_offset = offset[1]
+            elif offset[1] >= curr_offset[1] and start_offset:
+                end_offset = curr_offset[1]
+            if start_offset and end_offset:
+                return (start_offset, end_offset)
+        return None
+
+    to_return = {}
+    for missing_file, missing_byte_ranges in missing_files.iteritems():
+        for node_num in range(len(metadata['nodes'])):
+            if node_num == node_number:
+                continue
+            node_num_files = get_current_file_data(node_num, metadata)
+            if missing_file not in node_num_files:
+                # node node_num does not contain missing_file
+                continue
+            # check if node node_num contains the missing_file and missing_bytes
+            for missing_byte_range in missing_byte_ranges:
+                byte_range = get_byte_range_from_node(
+                        node_num_files[missing_file], missing_byte_range)
+                if not byte_range:
+                    # node node_num does not contain the missing_file with the
+                    # byte range
+                    continue
+                if node_num not in to_return:
+                    to_return[node_num] = {}
+                if missing_file not in to_return[node_num]:
+                    to_return[node_num][missing_file] = []
+                to_return[node_num][missing_file].append(byte_range)
+    return to_return
+
 def main(node_number):
     with open('metadata.json', 'r') as f:
         metadata = load(f)
     current_files = get_current_file_data(node_number, metadata)
+    print 'Node %d\'s current files: %s' % (node_number, str(current_files))
     missing_files = get_missing_file_data(node_number, metadata)
-    print missing_files
+    print 'Node %d\'s missing files: %s' % (node_number, str(missing_files))
+    nodes_with_missing_files = get_nodes_with_missing_files(node_number,
+            metadata, missing_files)
+    print 'Nodes that contain the missing files of Node %d: %s' % (
+            node_number, str(nodes_with_missing_files))
 
 parser = ArgumentParser(description='node number')
 parser.add_argument('node_number', nargs=1, type=int, help='node number')
