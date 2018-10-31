@@ -1,9 +1,8 @@
 {
-	"nodes": [
+	"node-files": [
 		{
 			"ip": "172.16.1.10",
-			"snd_port0": "4950",
-			"snd_port1": "4951",
+			"snd_port": "4950",
 			"files": [
 				{
 					"name": "n0.f1.txt",
@@ -31,8 +30,7 @@
 		},
 		{
 			"ip": "172.16.1.11",
-			"snd_port0": "4950",
-			"snd_port1": "4951",
+			"snd_port": "4950",
 			"files": [
 				{
 					"name": "n0.f1.txt",
@@ -55,7 +53,17 @@
 			]
 		}
 	],
-	"files": [
+	"alive-nodes": [
+		{
+			"ip": "172.16.1.10",
+			"snd_port": "4950"
+		},
+		{
+			"ip": "172.16.1.11",
+			"snd_port": "4950"
+		}
+	],
+	"all-files": [
 		{
 			"name": "n0.f1.txt",
 			"data": [

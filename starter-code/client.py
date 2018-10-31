@@ -9,7 +9,7 @@ def get_current_file_data(node_number, metadata):
     e.g., {'n0.f1.txt': [(0, 200), (500, 800)]}
     """
     to_return = {}
-    for file_dict in metadata['nodes'][node_number]['files']:
+    for file_dict in metadata['node-files'][node_number]['files']:
         offsets_list = []
         for offset_dict in file_dict['data']:
             offset_tup = (offset_dict['start_off'], offset_dict['end_off'])
@@ -64,7 +64,7 @@ def get_missing_file_data(node_number, metadata):
     # all_files_dict stores a dict of all complete files with their start and
     # end offsets.
     all_files_dict = {}
-    for file_dict in metadata['files']:
+    for file_dict in metadata['all-files']:
         offsets_list = []
         for offset_dict in file_dict['data']:
             offset_tup = (offset_dict['start_off'], offset_dict['end_off'])
@@ -132,7 +132,7 @@ def get_nodes_with_missing_files(node_number, metadata, missing_files):
 
     to_return = {}
     for missing_file, missing_byte_ranges in missing_files.iteritems():
-        for node_num in range(len(metadata['nodes'])):
+        for node_num in range(len(metadata['node-files'])):
             if node_num == node_number:
                 continue
             node_num_files = get_current_file_data(node_num, metadata)
