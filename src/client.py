@@ -1,10 +1,11 @@
 from kazoo.client import KazooClient
 from kazoo.protocol.states import ZnodeStat
-from os import listdir, curdir, path
-from argparse import ArgumentParser
+import os
+import argparse
 
 NODE_FILES_DIR = '/node-files'
 ALL_FILES_DIR = '/all-files'
+ALIVE_NODES_DIR = '/alive-nodes'
 
 def parse_offsets(offset_input):
     """
@@ -26,10 +27,10 @@ def get_current_file_data(node_ip, zk_handle):
     e.g., {'n0.f1.txt': [(0, 200), (500, 800)]}
     """
     to_return = {}
-    node_files_path = path.join(NODE_FILES_DIR, node_ip)
+    node_files_path = os.path.join(NODE_FILES_DIR, node_ip)
     node_files = zk_handle.get_children(node_files_path)
     for file_name in node_files:
-        file_path = path.join(node_files_path, file_name)
+        file_path = os.path.join(node_files_path, file_name)
         file_data, file_stat = zk_handle.get(file_path)
         to_return[file_name] = parse_offsets(file_data)
     return to_return
@@ -83,7 +84,7 @@ def get_missing_file_data(node_ip, zk_handle):
     all_files_dict = {}
     all_files = zk_handle.get_children(ALL_FILES_DIR)
     for file_name in all_files:
-        file_path = path.join(ALL_FILES_DIR, file_name)
+        file_path = os.path.join(ALL_FILES_DIR, file_name)
         file_data, file_stat = zk_handle.get(file_path)
         all_files_dict[file_name] = parse_offsets(file_data)
 
@@ -188,7 +189,7 @@ def main(node_ip):
     zk_handle.stop()
     zk_handle.close()
 
-parser = ArgumentParser(description='node IP')
+parser = argparse.ArgumentParser(description='node IP')
 parser.add_argument('node_ip', nargs=1, type=str, help='node IP')
 args = parser.parse_args()
 main(args.node_ip[0])
