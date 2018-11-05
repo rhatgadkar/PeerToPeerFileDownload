@@ -2,6 +2,7 @@ from kazoo.client import KazooClient
 from kazoo.protocol.states import ZnodeStat
 import os
 import argparse
+import threading
 
 NODE_FILES_DIR = '/node-files'
 ALL_FILES_DIR = '/all-files'
@@ -172,22 +173,120 @@ def get_nodes_with_missing_files(node_ip, zk_handle, missing_files):
                 to_return[node_file][missing_file].append(byte_range)
     return to_return
 
+def update_file_offsets(curr_file_offsets, rcvd_offset):
+    """
+    If curr_file_offsets = [(0, 200), (400, 499)] and rcvd_offset = (500, 599),
+    then this function should return:
+    [(0, 200), (400, 599)]
+
+    If curr_file_offsets = [(100, 200), (400, 800)] and rcvd_offset = (0, 99),
+    then this function should return:
+    [(0, 200), (400, 800)]
+
+    If curr_file_offsets = [(100, 200), (400, 800)] and
+    rcvd_offset = (201, 300), then this function should return:
+    [(100, 300), (400, 800)]
+
+    If curr_file_offsets = [(100, 199), (400, 800)] and
+    rcvd_offset = (200, 399), then this function should return:
+    [(100, 800)]
+
+    If curr_file_offsets = [(0, 0)] and rcvd_offset = (1, 1),
+    then this function should return:
+    [(0, 1)]
+    """
+    new_file_offsets = []
+    rcvd_start = rcvd_offset[0]
+    rcvd_end = rcvd_offset[1]
+    prev_added_offset = None
+    for curr_file_offset in curr_file_offsets:
+        curr_file_start = curr_file_offset[0]
+        curr_file_end = curr_file_offset[1]
+        if prev_added_offset and prev_added_offset not in curr_file_offsets:
+            prev_start = prev_added_offset[0]
+            prev_end = prev_added_offset[1]
+            # Example:
+            # curr_file_offsets = [(100, 199), (400, 800)]
+            #
+            # 1st it: new_file_offsets = [] and prev_added_offset = None and
+            #         rcvd_offset = (200, 399) and curr_file_offset = (100, 199)
+            #         Result: new_file_offsets = [(100, 399)] and
+            #                 prev_added_offset = (100, 399)
+            #
+            # (this if-statement will execute in the 2nd it)
+            # 2nd it: new_file_offsets = [(100, 399)] and
+            #         prev_added_offset = (100, 399) and
+            #         rcvd_offset = (200, 399) and
+            #         curr_file_offset = (400, 800)
+            #         Result: new_file_offsets = [(100, 800)] and
+            #                 prev_added_offset = (100, 800)
+            if prev_end + 1 == curr_file_start:
+                new_file_offsets.pop()  # delete prev_added_offset
+            rcvd_start = prev_start
+            rcvd_end = prev_end
+                #new_file_offset = (prev_start, curr_file_end)
+        if rcvd_end + 1 == curr_file_start:
+            # Example: curr_file_offsets = [(100, 200)] and
+            #          rcvd_offset = (0, 99)
+            # Result: new_file_offsets = [(0, 200)]
+            new_file_offset = (rcvd_start, curr_file_end)
+        elif curr_file_end + 1 == rcvd_start:
+            # Example: curr_file_offsets = [(100, 200)] and
+            #          rcvd_offset = (201, 300)
+            # Result: new_file_offsets = [(100, 300)]
+            new_file_offset = (curr_file_start, rcvd_end)
+        else:
+            new_file_offset = curr_file_offset
+        new_file_offsets.append(new_file_offset)
+        prev_added_offset = new_file_offset
+    list.sort(new_file_offsets)
+    return new_file_offsets
+
+def thread_func(args):
+    node_ip = args[0]
+    zk_handle = args[1]
+    thread1_data = args[2]
+    thread1_data_lock = args[3]
+    thread2_data = args[4]
+    thread2_data_lock = args[5]
+    thread_name = threading.current_thread().getName()
+    while True:
+        current_files = get_current_file_data(node_ip, zk_handle)
+        print '%s -> Node %s\'s current files: %s' % (thread_name, node_ip,
+                str(current_files))
+        missing_files = get_missing_file_data(node_ip, zk_handle)
+        print '%s -> Node %s\'s missing files: %s' % (thread_name, node_ip,
+                str(missing_files))
+        nodes_with_missing_files = get_nodes_with_missing_files(node_ip,
+                zk_handle, missing_files)
+        print '%s -> Nodes that contain the missing files of Node %s: %s' % (
+                thread_name, node_ip, str(nodes_with_missing_files))
+        # TODO: order the nodes with the missing files based on number of
+        #       missing files
+
 def main(node_ip):
     zk_handle = KazooClient(hosts='127.0.0.1:2181')
     try:
         zk_handle.start()
     except:
         raise Exception('Could not establish connection to ZK server')
-    current_files = get_current_file_data(node_ip, zk_handle)
-    print 'Node %s\'s current files: %s' % (node_ip, str(current_files))
-    missing_files = get_missing_file_data(node_ip, zk_handle)
-    print 'Node %s\'s missing files: %s' % (node_ip, str(missing_files))
-    nodes_with_missing_files = get_nodes_with_missing_files(node_ip,
-            zk_handle, missing_files)
-    print 'Nodes that contain the missing files of Node %s: %s' % (
-            node_ip, str(nodes_with_missing_files))
-    zk_handle.stop()
-    zk_handle.close()
+
+    thread1_data = {}
+    thread1_data_lock = threading.Lock()
+    thread2_data = {}
+    thread2_data_lock = threading.Lock()
+
+    # the threads should run forever until a SIGINT
+    thread1 = threading.Thread(target=thread_func, name='thread1', args=(
+            node_ip, zk_handle, thread1_data, thread1_data_lock, thread2_data,
+            thread2_data_lock))
+    thread2 = threading.Thread(target=thread_func, name='thread2', args=(
+            node_ip, zk_handle, thread1_data, thread1_data_lock, thread2_data,
+            thread2_data_lock))
+    thread1.start()
+    thread2.start()
+    thread1.join()
+    thread2.join()
 
 parser = argparse.ArgumentParser(description='node IP')
 parser.add_argument('node_ip', nargs=1, type=str, help='node IP')
