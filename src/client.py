@@ -41,6 +41,19 @@ def get_current_file_data(node_ip, zk_handle):
         to_return[file_name] = parse_offsets(file_data)
     return to_return
 
+def get_tuple_containing_curr(all_offsets, curr_offset):
+    """
+    Get a tuple from all_offsets that contains curr_offset.
+
+    e.g., all_offsets = [(500, 600), (700, 1000)] and
+          curr_offset = (500, 550)
+    The function will return: (500, 600)
+    """
+    for offset in all_offsets:
+        if curr_offset[0] >= offset[0] and offset[1] >= curr_offset[1]:
+            return offset
+    return None
+
 def get_missing_data_tuples(all_file_offsets, curr_file_offsets):
     """
     Get a list of missing tuples of start and end offsets.
@@ -49,20 +62,6 @@ def get_missing_data_tuples(all_file_offsets, curr_file_offsets):
           curr_file_offsets = [(0, 200), (500, 800)]
     The function will return: [(201, 499)]
     """
-
-    def get_tuple_containing_curr(all_offsets, curr_offset):
-        """
-        Get a tuple from all_offsets that contains curr_offset.
-
-        e.g., all_offsets = [(500, 600), (700, 1000)] and
-              curr_offset = (500, 550)
-        The function will return: (500, 600)
-        """
-        for offset in all_offsets:
-            if curr_offset[0] >= offset[0] and offset[1] >= curr_offset[1]:
-                return offset
-        return None
-
     missing_file_offsets = all_file_offsets
     for curr_file_offset in curr_file_offsets:
         all_file_offset = get_tuple_containing_curr(missing_file_offsets,
@@ -271,6 +270,44 @@ def thread_func(args):
         # TODO: order the nodes with the missing files based on number of
         #       missing files
 
+def add_missing_offset(missing_offsets, add_offset):
+    """
+    Example missing_offsets:
+    [(0, 0), (80, 200)]
+
+    Example add_offset:
+    (93, 192)
+
+    Changes missing_offsets to:
+    [(0, 0), (80, 92), (193, 200)]
+
+    add_offset will not be equal to any offset in missing_offsets, because
+    that offset will be removed from missing_offsets.
+    """
+    # Example overlaps:
+    # add_offset = (5, 10)  missing_offset = (0, 11)  -> [(0, 4), (11, 11)]
+    # add_offset = (5, 11)  missing_offset = (0, 11)  -> [(0, 4)]
+    # add_offset = (0, 5)   missing_offset = (0, 11)  -> [(6, 11)]
+    missing_offset = get_tuple_containing_curr(missing_offsets, add_offset)
+    add_start_off = add_offset[0]
+    add_end_off = add_offset[1]
+    missing_start_off = missing_offset[0]
+    missing_end_off = missing_offset[1]
+    missing_offsets.remove(missing_offset)
+    if add_start_off > missing_start_off and add_end_off < missing_end_off:
+        # create 2 new tuples:
+        # (missing_start_off, add_start_off - 1)
+        # (add_end_off + 1, missing_end_off)
+        missing_offsets.append((missing_start_off, add_start_off - 1))
+        missing_offsets.append((add_end_off + 1, missing_end_off))
+    elif add_end_off == missing_end_off:
+        # create tuple: (missing_start_off, add_start_off - 1)
+        missing_offsets.append((missing_start_off, add_start_off - 1))
+    elif add_start_off == missing_start_off:
+        # create tuple: (add_end_off + 1, missing_end_off)
+        missing_offsets.append((add_end_off + 1, missing_end_off))
+    list.sort(missing_offsets)
+
 def get_random_file_offset(missing_files, other_thread_data):
     """
     Example missing_files:
@@ -281,31 +318,17 @@ def get_random_file_offset(missing_files, other_thread_data):
 
     Example return values:
     ('n1.f1.txt', (80, 92))
+    ('n1.f1.txt', (193, 200))
     ('n2.f2.txt', (8, 8))
 
     Need to pick a random offset range of length at most 100 of a file which
     does not overlap with an offset from other_thread_data's offsets of the same
     file.
     """
-    def add_missing_offset(missing_offsets, add_offset):
-        """
-        Example missing_offsets:
-        [(0, 0), (80, 200)]
-
-        Example add_offset:
-        (93, 192)
-
-        Changes missing_offsets to:
-        [(0, 0), (80, 92), (193, 200)]
-        """
-        pass
-
-    while True:
-        random_file = random.choice(missing_files.keys())
+    missing_file_names = missing_files.keys()
+    random.shuffle(missing_file_names)
+    for random_file in missing_file_names:
         if random_file in other_thread_data:
-            # pick a random offset range of length at most 100 within
-            # random_offset_range that does not overlap with an offset range in
-            # other_thread_offset_ranges
             other_thread_offset_ranges = other_thread_data[random_file]
             # remove offsets from missing_files that exist in
             # other_thread_offset_ranges, and update missing_files list using
@@ -314,42 +337,26 @@ def get_random_file_offset(missing_files, other_thread_data):
                 if other_thread_offset_range in missing_files[random_file]:
                     missing_files[random_file].remove(other_thread_offset_range)
                 else:
-                    add_missing_offsets(missing_files[random_flie],
+                    add_missing_offset(missing_files[random_file],
                             other_thread_offset_range)
-
-            for missing_offset_range in missing_files[random_file]:
-                for other_thread_offset_range in other_thread_offset_ranges:
-                    if missing_offset_range == other_thread_offset_range:
-                        continue
-                    other_thread_first_offset = other_thread_offset_range[0]
-                    other_thread_last_offset = other_thread_offset_range[1]
-                    # Example overlaps:
-                    # offset = (1, 2)   other_thread_offset = (1, 2)
-                    # offset = (5, 10)  other_thread_offset = (0, 11)
-                    # offset = (2, 3)   other_thread_offset = (1, 2)
-                    # offset = (2, 3)   other_thread_offset = (3, 4)
-                    if first_offset < other_thread_first_offset and \
-                            last_offset < other_thread_first_offset:
-                        return (random_file, (first_offset, last_offset))
-                    elif first_offset > other_thread_last_offset and \
-                            last_offset > other_thread_last_offset:
-                        return (random_file, (first_offset, last_offset))
-        else:
-            # pick any offset of length at most 100 for the file and return
-            random_offset_range = random.choice(missing_files[random_file])
-            first_offset = random_offset_range[0]
-            last_offset = random_offset_range[1]
+        if not missing_files[random_file]:
+            continue
+        # pick any offset of length at most 100 for the file and return
+        random_offset_range = random.choice(missing_files[random_file])
+        first_offset = random_offset_range[0]
+        last_offset = random_offset_range[1]
+        offset_len = last_offset - first_offset + 1
+        if offset_len <= 100:
+            return (random_file, random_offset_range)
+        # extract an offset range of length 100 from random_offset_range
+        while True:
+            first_offset = random.randint(first_offset, last_offset)
             offset_len = last_offset - first_offset + 1
-            if offset_len <= 100:
-                return (random_file, random_offset_range)
-            # extract an offset range of length 100 from random_offset_range
-            while True:
-                first_offset = random.randint(first_offset, last_offset)
-                offset_len = last_offset - first_offset + 1
-                if offset_len >= 100:
-                    last_offset -= (offset_len - 100)
-                    break
-            return (random_file, (first_offset, last_offset))
+            if offset_len >= 100:
+                last_offset -= (offset_len - 100)
+                break
+        return (random_file, (first_offset, last_offset))
+    return None
 
 def main(node_ip):
     zk_handle = KazooClient(hosts='127.0.0.1:2181')
@@ -402,7 +409,6 @@ def main(node_ip):
     zk_handle.stop()
     zk_handle.close()
 
-#print get_random_file_offset({'n1.f1.txt': [(0, 0), (80, 200)], 'n2.f2.txt': [(8, 9)]}, {'n1.f1.txt': [(0, 0), (93, 192)], 'n2.f2.txt': [(9, 9)]})
 parser = argparse.ArgumentParser(description='node IP')
 parser.add_argument('node_ip', nargs=1, type=str, help='node IP')
 args = parser.parse_args()
