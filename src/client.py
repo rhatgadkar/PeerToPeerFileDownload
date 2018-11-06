@@ -3,10 +3,15 @@ from kazoo.protocol.states import ZnodeStat
 import os
 import argparse
 import threading
+from collections import OrderedDict
+import random
 
 NODE_FILES_DIR = '/node-files'
 ALL_FILES_DIR = '/all-files'
 ALIVE_NODES_DIR = '/alive-nodes'
+
+THREAD1 = 'thread1'
+THREAD2 = 'thread2'
 
 def parse_offsets(offset_input):
     """
@@ -252,17 +257,99 @@ def thread_func(args):
     thread_name = threading.current_thread().getName()
     while True:
         current_files = get_current_file_data(node_ip, zk_handle)
-        print '%s -> Node %s\'s current files: %s' % (thread_name, node_ip,
-                str(current_files))
         missing_files = get_missing_file_data(node_ip, zk_handle)
-        print '%s -> Node %s\'s missing files: %s' % (thread_name, node_ip,
-                str(missing_files))
         nodes_with_missing_files = get_nodes_with_missing_files(node_ip,
                 zk_handle, missing_files)
+        if not nodes_with_missing_files:
+            continue
+        print '%s -> Node %s\'s current files: %s' % (thread_name, node_ip,
+                str(current_files))
+        print '%s -> Node %s\'s missing files: %s' % (thread_name, node_ip,
+                str(missing_files))
         print '%s -> Nodes that contain the missing files of Node %s: %s' % (
                 thread_name, node_ip, str(nodes_with_missing_files))
         # TODO: order the nodes with the missing files based on number of
         #       missing files
+
+def get_random_file_offset(missing_files, other_thread_data):
+    """
+    Example missing_files:
+    {'n1.f1.txt': [(0, 0), (80, 200)], 'n2.f2.txt': [(8, 9)]}
+
+    Example other_thread_data:
+    {'n1.f1.txt': [(0, 0), (93, 192)], 'n2.f2.txt': [(9, 9)]}
+
+    Example return values:
+    ('n1.f1.txt', (80, 92))
+    ('n2.f2.txt', (8, 8))
+
+    Need to pick a random offset range of length at most 100 of a file which
+    does not overlap with an offset from other_thread_data's offsets of the same
+    file.
+    """
+    def add_missing_offset(missing_offsets, add_offset):
+        """
+        Example missing_offsets:
+        [(0, 0), (80, 200)]
+
+        Example add_offset:
+        (93, 192)
+
+        Changes missing_offsets to:
+        [(0, 0), (80, 92), (193, 200)]
+        """
+        pass
+
+    while True:
+        random_file = random.choice(missing_files.keys())
+        if random_file in other_thread_data:
+            # pick a random offset range of length at most 100 within
+            # random_offset_range that does not overlap with an offset range in
+            # other_thread_offset_ranges
+            other_thread_offset_ranges = other_thread_data[random_file]
+            # remove offsets from missing_files that exist in
+            # other_thread_offset_ranges, and update missing_files list using
+            # add_missing_offsets() with offsets from other_thread_offset_ranges
+            for other_thread_offset_range in other_thread_offset_ranges:
+                if other_thread_offset_range in missing_files[random_file]:
+                    missing_files[random_file].remove(other_thread_offset_range)
+                else:
+                    add_missing_offsets(missing_files[random_flie],
+                            other_thread_offset_range)
+
+            for missing_offset_range in missing_files[random_file]:
+                for other_thread_offset_range in other_thread_offset_ranges:
+                    if missing_offset_range == other_thread_offset_range:
+                        continue
+                    other_thread_first_offset = other_thread_offset_range[0]
+                    other_thread_last_offset = other_thread_offset_range[1]
+                    # Example overlaps:
+                    # offset = (1, 2)   other_thread_offset = (1, 2)
+                    # offset = (5, 10)  other_thread_offset = (0, 11)
+                    # offset = (2, 3)   other_thread_offset = (1, 2)
+                    # offset = (2, 3)   other_thread_offset = (3, 4)
+                    if first_offset < other_thread_first_offset and \
+                            last_offset < other_thread_first_offset:
+                        return (random_file, (first_offset, last_offset))
+                    elif first_offset > other_thread_last_offset and \
+                            last_offset > other_thread_last_offset:
+                        return (random_file, (first_offset, last_offset))
+        else:
+            # pick any offset of length at most 100 for the file and return
+            random_offset_range = random.choice(missing_files[random_file])
+            first_offset = random_offset_range[0]
+            last_offset = random_offset_range[1]
+            offset_len = last_offset - first_offset + 1
+            if offset_len <= 100:
+                return (random_file, random_offset_range)
+            # extract an offset range of length 100 from random_offset_range
+            while True:
+                first_offset = random.randint(first_offset, last_offset)
+                offset_len = last_offset - first_offset + 1
+                if offset_len >= 100:
+                    last_offset -= (offset_len - 100)
+                    break
+            return (random_file, (first_offset, last_offset))
 
 def main(node_ip):
     zk_handle = KazooClient(hosts='127.0.0.1:2181')
@@ -272,22 +359,50 @@ def main(node_ip):
         raise Exception('Could not establish connection to ZK server')
 
     thread1_data = {}
-    thread1_data_lock = threading.Lock()
     thread2_data = {}
-    thread2_data_lock = threading.Lock()
+    active_threads = {THREAD1: None, THREAD2: None}
+    shared_lock = threading.Lock()
 
-    # the threads should run forever until a SIGINT
-    thread1 = threading.Thread(target=thread_func, name='thread1', args=(
-            node_ip, zk_handle, thread1_data, thread1_data_lock, thread2_data,
-            thread2_data_lock))
-    thread2 = threading.Thread(target=thread_func, name='thread2', args=(
-            node_ip, zk_handle, thread1_data, thread1_data_lock, thread2_data,
-            thread2_data_lock))
-    thread1.start()
-    thread2.start()
-    thread1.join()
-    thread2.join()
+    while True:
+        current_files = get_current_file_data(node_ip, zk_handle)
+        missing_files = get_missing_file_data(node_ip, zk_handle)
+        nodes_with_missing_files = get_nodes_with_missing_files(node_ip,
+                zk_handle, missing_files)
+        if not nodes_with_missing_files:
+            continue
 
+        # order the nodes with the missing files based on number of missing
+        # files
+        nodes_with_missing_files = OrderedDict(sorted(
+                nodes_with_missing_files.items(), key=lambda t: len(t[1])))
+
+        shared_lock.acquire()
+        if not active_threads[THREAD1]:
+            node, missing_files = nodes_with_missing_files.items()[0]
+            del nodes_with_missing_files[node]
+            random_file_offset = get_random_file_offset(missing_files,
+                    thread2_data)
+            active_threads[THREAD1] = threading.Thread(target=thread_func,
+                    name=THREAD1, args=(node_ip, zk_handle, thread1_data,
+                    thread2_data, active_threads, shared_lock))
+            active_threads[THREAD1].start()
+        if not active_threads[THREAD2]:
+            node, missing_files = nodes_with_missing_files.items()[0]
+            del nodes_with_missing_files[node]
+            random_file_offset = get_random_file_offset(missing_files,
+                    thread1_data)
+            active_threads[THREAD2] = threading.Thread(target=thread_func,
+                    name=THREAD2, args=(node_ip, zk_handle, thread1_data,
+                    thread2_data, active_threads, shared_lock))
+            active_threads[THREAD2].start()
+        shared_lock.release()
+
+        # TODO: update file offsets by calling update_file_offsets()
+
+    zk_handle.stop()
+    zk_handle.close()
+
+#print get_random_file_offset({'n1.f1.txt': [(0, 0), (80, 200)], 'n2.f2.txt': [(8, 9)]}, {'n1.f1.txt': [(0, 0), (93, 192)], 'n2.f2.txt': [(9, 9)]})
 parser = argparse.ArgumentParser(description='node IP')
 parser.add_argument('node_ip', nargs=1, type=str, help='node IP')
 args = parser.parse_args()
