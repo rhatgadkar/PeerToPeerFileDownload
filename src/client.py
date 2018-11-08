@@ -1,10 +1,12 @@
 from kazoo.client import KazooClient
 from kazoo.protocol.states import ZnodeStat
+import kazoo.exceptions
 import os
 import argparse
 import threading
 from collections import OrderedDict
 import random
+import time
 
 NODE_FILES_DIR = '/node-files'
 ALL_FILES_DIR = '/all-files'
@@ -26,11 +28,27 @@ def parse_offsets(offset_input):
         to_return.append( (int(start), int(end)) )
     return to_return
 
+def get_znode_offsets(offset_input):
+    """
+    Example:
+    offset_input: [(0, 200), (800, 1000)]
+    
+    Return: 0,200;800,1000
+    """
+    to_return = ''
+    list.sort(offset_input)
+    for i in range(len(offset_input)):
+        curr_range = offset_input[i]
+        if i > 0:
+            to_return += ';'
+        to_return += (str(curr_range[0]) + ',' + str(curr_range[1]))
+    return to_return
+
 def get_current_file_data(node_ip, zk_handle):
     """
     Get a dict of a node's files and their start and end offsets.
 
-    e.g., {'n0.f1.txt': [(0, 200), (500, 800)]}
+    e.g., { 'n0.f1.txt': (v#, [(0, 200), (500, 800)]) }
     """
     to_return = {}
     node_files_path = os.path.join(NODE_FILES_DIR, node_ip)
@@ -38,7 +56,7 @@ def get_current_file_data(node_ip, zk_handle):
     for file_name in node_files:
         file_path = os.path.join(node_files_path, file_name)
         file_data, file_stat = zk_handle.get(file_path)
-        to_return[file_name] = parse_offsets(file_data)
+        to_return[file_name] = (file_stat.version, parse_offsets(file_data))
     return to_return
 
 def get_tuple_containing_curr(all_offsets, curr_offset):
@@ -107,9 +125,9 @@ def get_missing_file_data(node_ip, zk_handle):
     for file_name, file_offsets in all_files_dict.iteritems():
         if file_name not in current_files_dict:
             to_return[file_name] = file_offsets
-        elif file_offsets != current_files_dict[file_name]:
+        elif file_offsets != current_files_dict[file_name][1]:
             missing_data_tuples = get_missing_data_tuples(file_offsets,
-                    current_files_dict[file_name])
+                    current_files_dict[file_name][1])
             to_return[file_name] = missing_data_tuples
     return to_return
 
@@ -165,7 +183,7 @@ def get_nodes_with_missing_files(node_ip, zk_handle, missing_files):
             # check if node node_ip contains the missing_file and missing_bytes
             for missing_byte_range in missing_byte_ranges:
                 byte_range = get_byte_range_from_node(
-                        node_ip_files[missing_file], missing_byte_range)
+                        node_ip_files[missing_file][1], missing_byte_range)
                 if not byte_range:
                     # node node_ip does not contain the missing_file with the
                     # byte range
@@ -244,69 +262,21 @@ def update_file_offsets(curr_file_offsets, rcvd_offset):
         new_file_offsets.append(new_file_offset)
         prev_added_offset = new_file_offset
     list.sort(new_file_offsets)
+    if new_file_offsets == curr_file_offsets:
+        # FIXME: this is incorrect; it should result in ordered incremental
+        # offset ranges
+        # Thread thread1 -> 172.16.1.10 successfully updated file n0.f1.txt with offsets: [(0, 200), (223, 322), (500, 800)]
+        # Thread thread2 -> 172.16.1.10 trying to get file n0.f1.txt and offsets: (231, 330)
+        # Thread thread2 -> 172.16.1.10 successfully updated file n0.f1.txt with offsets: [(0, 200), (223, 322), (231, 330), (500, 800)]
+
+        # rcvd_offset does not affect the current offsets; so just append
+        # rcvd_offset
+        # Example: curr_file_offsets = [(0, 200), (500, 800)] and
+        #          rcvd_offset = (298, 397)
+        new_file_offsets.append(rcvd_offset)
+        list.sort(new_file_offsets)
     return new_file_offsets
 
-def thread_func(args):
-    node_ip = args[0]
-    zk_handle = args[1]
-    thread1_data = args[2]
-    thread1_data_lock = args[3]
-    thread2_data = args[4]
-    thread2_data_lock = args[5]
-    thread_name = threading.current_thread().getName()
-    while True:
-        current_files = get_current_file_data(node_ip, zk_handle)
-        missing_files = get_missing_file_data(node_ip, zk_handle)
-        nodes_with_missing_files = get_nodes_with_missing_files(node_ip,
-                zk_handle, missing_files)
-        if not nodes_with_missing_files:
-            continue
-        print '%s -> Node %s\'s current files: %s' % (thread_name, node_ip,
-                str(current_files))
-        print '%s -> Node %s\'s missing files: %s' % (thread_name, node_ip,
-                str(missing_files))
-        print '%s -> Nodes that contain the missing files of Node %s: %s' % (
-                thread_name, node_ip, str(nodes_with_missing_files))
-        # TODO: order the nodes with the missing files based on number of
-        #       missing files
-
-def add_missing_offset(missing_offsets, add_offset):
-    """
-    Example missing_offsets:
-    [(0, 0), (80, 200)]
-
-    Example add_offset:
-    (93, 192)
-
-    Changes missing_offsets to:
-    [(0, 0), (80, 92), (193, 200)]
-
-    add_offset will not be equal to any offset in missing_offsets, because
-    that offset will be removed from missing_offsets.
-    """
-    # Example overlaps:
-    # add_offset = (5, 10)  missing_offset = (0, 11)  -> [(0, 4), (11, 11)]
-    # add_offset = (5, 11)  missing_offset = (0, 11)  -> [(0, 4)]
-    # add_offset = (0, 5)   missing_offset = (0, 11)  -> [(6, 11)]
-    missing_offset = get_tuple_containing_curr(missing_offsets, add_offset)
-    add_start_off = add_offset[0]
-    add_end_off = add_offset[1]
-    missing_start_off = missing_offset[0]
-    missing_end_off = missing_offset[1]
-    missing_offsets.remove(missing_offset)
-    if add_start_off > missing_start_off and add_end_off < missing_end_off:
-        # create 2 new tuples:
-        # (missing_start_off, add_start_off - 1)
-        # (add_end_off + 1, missing_end_off)
-        missing_offsets.append((missing_start_off, add_start_off - 1))
-        missing_offsets.append((add_end_off + 1, missing_end_off))
-    elif add_end_off == missing_end_off:
-        # create tuple: (missing_start_off, add_start_off - 1)
-        missing_offsets.append((missing_start_off, add_start_off - 1))
-    elif add_start_off == missing_start_off:
-        # create tuple: (add_end_off + 1, missing_end_off)
-        missing_offsets.append((add_end_off + 1, missing_end_off))
-    list.sort(missing_offsets)
 
 def get_random_file_offset(missing_files, other_thread_data):
     """
@@ -325,6 +295,44 @@ def get_random_file_offset(missing_files, other_thread_data):
     does not overlap with an offset from other_thread_data's offsets of the same
     file.
     """
+    def add_missing_offset(missing_offsets, add_offset):
+        """
+        Example missing_offsets:
+        [(0, 0), (80, 200)]
+
+        Example add_offset:
+        (93, 192)
+
+        Changes missing_offsets to:
+        [(0, 0), (80, 92), (193, 200)]
+
+        add_offset will not be equal to any offset in missing_offsets, because
+        that offset will be removed from missing_offsets.
+        """
+        # Example overlaps:
+        # add_offset = (5, 10)  missing_offset = (0, 11)  -> [(0, 4), (11, 11)]
+        # add_offset = (5, 11)  missing_offset = (0, 11)  -> [(0, 4)]
+        # add_offset = (0, 5)   missing_offset = (0, 11)  -> [(6, 11)]
+        missing_offset = get_tuple_containing_curr(missing_offsets, add_offset)
+        add_start_off = add_offset[0]
+        add_end_off = add_offset[1]
+        missing_start_off = missing_offset[0]
+        missing_end_off = missing_offset[1]
+        missing_offsets.remove(missing_offset)
+        if add_start_off > missing_start_off and add_end_off < missing_end_off:
+            # create 2 new tuples:
+            # (missing_start_off, add_start_off - 1)
+            # (add_end_off + 1, missing_end_off)
+            missing_offsets.append((missing_start_off, add_start_off - 1))
+            missing_offsets.append((add_end_off + 1, missing_end_off))
+        elif add_end_off == missing_end_off:
+            # create tuple: (missing_start_off, add_start_off - 1)
+            missing_offsets.append((missing_start_off, add_start_off - 1))
+        elif add_start_off == missing_start_off:
+            # create tuple: (add_end_off + 1, missing_end_off)
+            missing_offsets.append((add_end_off + 1, missing_end_off))
+        list.sort(missing_offsets)
+
     missing_file_names = missing_files.keys()
     random.shuffle(missing_file_names)
     for random_file in missing_file_names:
@@ -350,6 +358,7 @@ def get_random_file_offset(missing_files, other_thread_data):
             return (random_file, random_offset_range)
         # extract an offset range of length 100 from random_offset_range
         while True:
+            #print 'offset try get:', first_offset, last_offset
             first_offset = random.randint(first_offset, last_offset)
             offset_len = last_offset - first_offset + 1
             if offset_len >= 100:
@@ -357,6 +366,44 @@ def get_random_file_offset(missing_files, other_thread_data):
                 break
         return (random_file, (first_offset, last_offset))
     return None
+
+def thread_func(node_ip, zk_handle, thread_data, active_threads, shared_lock):
+    thread_name = threading.current_thread().getName()
+    shared_lock.acquire()
+    # thread_data should be formatted like this:
+    # {'172.16.1.10': ('n1.f1.txt', (0, 200))}
+    node_to_get_from = thread_data.keys()[0]
+    file_to_get = thread_data[node_to_get_from][0]
+    offsets_to_get = thread_data[node_to_get_from][1]
+    shared_lock.release()
+    file_path = os.path.join(NODE_FILES_DIR, node_ip, file_to_get)
+    print 'Thread %s -> %s trying to get file %s and offsets: %s' % (
+            thread_name, node_ip, file_to_get, str(offsets_to_get))
+    # TODO: establish socket connection and receive bytes to write to file
+    # read from /node-files and then update the offset; using version #
+    while True:
+        current_files = get_current_file_data(node_ip, zk_handle)
+        if file_to_get in current_files:
+            file_version = current_files[file_to_get][0]
+            file_offsets = current_files[file_to_get][1]
+            updated_offsets = update_file_offsets(file_offsets, offsets_to_get)
+            # update the file's znode under /node-files
+            znode_offsets = get_znode_offsets(updated_offsets)
+            try:
+                zk_handle.set(file_path, bytes(znode_offsets), file_version)
+            except kazoo.exceptions.BadVersionError as e:
+                continue
+            print 'Thread %s -> %s successfully updated file %s with offsets: %s' % (thread_name, node_ip, file_to_get,
+                    str(updated_offsets))
+            break
+        else:
+            # TODO: create the file's znode under /node-files
+            print 'Thread %s -> %s shouldn\'t be here' % (thread_name, node_ip)
+            break
+    shared_lock.acquire()
+    thread_data.clear()
+    active_threads[thread_name] = None
+    shared_lock.release()
 
 def main(node_ip):
     zk_handle = KazooClient(hosts='127.0.0.1:2181')
@@ -368,6 +415,7 @@ def main(node_ip):
     thread1_data = {}
     thread2_data = {}
     active_threads = {THREAD1: None, THREAD2: None}
+    # use shared_lock to read/write active_threads and print to stdou
     shared_lock = threading.Lock()
 
     while True:
@@ -376,35 +424,49 @@ def main(node_ip):
         nodes_with_missing_files = get_nodes_with_missing_files(node_ip,
                 zk_handle, missing_files)
         if not nodes_with_missing_files:
+            time.sleep(5)  # wait 5 seconds before checking again
             continue
+
+#        shared_lock.acquire()
+#        print '%s -> %s\'s current files: %s' % ('main thread', node_ip,
+#                str(current_files))
+#        print '%s -> %s\'s missing files: %s' % ('main thread', node_ip,
+#                str(missing_files))
+#        print '%s -> Nodes that contain the missing files of %s: %s' % (
+#                'main thread', node_ip, str(nodes_with_missing_files))
+#        shared_lock.release()
 
         # order the nodes with the missing files based on number of missing
         # files
         nodes_with_missing_files = OrderedDict(sorted(
                 nodes_with_missing_files.items(), key=lambda t: len(t[1])))
 
+        print 'active_threads:', str(active_threads)
+
         shared_lock.acquire()
-        if not active_threads[THREAD1]:
+        if not active_threads[THREAD1] and nodes_with_missing_files.items():
+            print 'testdebug1'
             node, missing_files = nodes_with_missing_files.items()[0]
             del nodes_with_missing_files[node]
-            random_file_offset = get_random_file_offset(missing_files,
+            random_file, random_offset = get_random_file_offset(missing_files,
                     thread2_data)
+            thread1_data[node] = (random_file, random_offset)
             active_threads[THREAD1] = threading.Thread(target=thread_func,
                     name=THREAD1, args=(node_ip, zk_handle, thread1_data,
-                    thread2_data, active_threads, shared_lock))
+                    active_threads, shared_lock))
             active_threads[THREAD1].start()
-        if not active_threads[THREAD2]:
+        if not active_threads[THREAD2] and nodes_with_missing_files.items():
+            print 'testdebug2'
             node, missing_files = nodes_with_missing_files.items()[0]
             del nodes_with_missing_files[node]
-            random_file_offset = get_random_file_offset(missing_files,
-                    thread1_data)
+            random_file, random_offset = get_random_file_offset(
+                    missing_files, thread1_data)
+            thread2_data[node] = (random_file, random_offset)
             active_threads[THREAD2] = threading.Thread(target=thread_func,
-                    name=THREAD2, args=(node_ip, zk_handle, thread1_data,
-                    thread2_data, active_threads, shared_lock))
+                    name=THREAD2, args=(node_ip, zk_handle, thread2_data,
+                    active_threads, shared_lock))
             active_threads[THREAD2].start()
         shared_lock.release()
-
-        # TODO: update file offsets by calling update_file_offsets()
 
     zk_handle.stop()
     zk_handle.close()
