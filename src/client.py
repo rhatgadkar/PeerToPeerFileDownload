@@ -265,6 +265,10 @@ def update_file_offsets(curr_file_offsets, rcvd_offset):
     if new_file_offsets == curr_file_offsets:
         # FIXME: this is incorrect; it should result in ordered incremental
         # offset ranges
+        #
+        # Thread thread1 -> 172.16.1.10 trying to get file n0.f1.txt and offsets: (223, 322)
+        # active_threads: {'thread2': None, 'thread1': <Thread(thread1, started 139734634784512)>}
+        # testdebug2
         # Thread thread1 -> 172.16.1.10 successfully updated file n0.f1.txt with offsets: [(0, 200), (223, 322), (500, 800)]
         # Thread thread2 -> 172.16.1.10 trying to get file n0.f1.txt and offsets: (231, 330)
         # Thread thread2 -> 172.16.1.10 successfully updated file n0.f1.txt with offsets: [(0, 200), (223, 322), (231, 330), (500, 800)]
