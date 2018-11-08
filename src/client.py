@@ -216,6 +216,10 @@ def update_file_offsets(curr_file_offsets, rcvd_offset):
     If curr_file_offsets = [(0, 0)] and rcvd_offset = (1, 1),
     then this function should return:
     [(0, 1)]
+
+    If curr_file_offsets = [(0, 200), (500, 800)] and rcvd_offset = (298, 397),
+    then this function should return:
+    [(0, 200), (298, 397), (500, 800)]
     """
     new_file_offsets = []
     rcvd_start = rcvd_offset[0]
@@ -263,16 +267,6 @@ def update_file_offsets(curr_file_offsets, rcvd_offset):
         prev_added_offset = new_file_offset
     list.sort(new_file_offsets)
     if new_file_offsets == curr_file_offsets:
-        # FIXME: this is incorrect; it should result in ordered incremental
-        # offset ranges
-        #
-        # Thread thread1 -> 172.16.1.10 trying to get file n0.f1.txt and offsets: (223, 322)
-        # active_threads: {'thread2': None, 'thread1': <Thread(thread1, started 139734634784512)>}
-        # testdebug2
-        # Thread thread1 -> 172.16.1.10 successfully updated file n0.f1.txt with offsets: [(0, 200), (223, 322), (500, 800)]
-        # Thread thread2 -> 172.16.1.10 trying to get file n0.f1.txt and offsets: (231, 330)
-        # Thread thread2 -> 172.16.1.10 successfully updated file n0.f1.txt with offsets: [(0, 200), (223, 322), (231, 330), (500, 800)]
-
         # rcvd_offset does not affect the current offsets; so just append
         # rcvd_offset
         # Example: curr_file_offsets = [(0, 200), (500, 800)] and
@@ -340,6 +334,8 @@ def get_random_file_offset(missing_files, other_thread_data):
     missing_file_names = missing_files.keys()
     random.shuffle(missing_file_names)
     for random_file in missing_file_names:
+        # FIXME: other_thread_data is formatted like this:
+        #        {'172.16.1.10': ('n1.f1.txt', (0, 200))}
         if random_file in other_thread_data:
             other_thread_offset_ranges = other_thread_data[random_file]
             # remove offsets from missing_files that exist in
@@ -361,13 +357,13 @@ def get_random_file_offset(missing_files, other_thread_data):
         if offset_len <= 100:
             return (random_file, random_offset_range)
         # extract an offset range of length 100 from random_offset_range
+        first_offset = random.randint(first_offset, last_offset)
         while True:
-            #print 'offset try get:', first_offset, last_offset
-            first_offset = random.randint(first_offset, last_offset)
             offset_len = last_offset - first_offset + 1
             if offset_len >= 100:
                 last_offset -= (offset_len - 100)
                 break
+            first_offset -= 1
         return (random_file, (first_offset, last_offset))
     return None
 
@@ -379,10 +375,10 @@ def thread_func(node_ip, zk_handle, thread_data, active_threads, shared_lock):
     node_to_get_from = thread_data.keys()[0]
     file_to_get = thread_data[node_to_get_from][0]
     offsets_to_get = thread_data[node_to_get_from][1]
-    shared_lock.release()
-    file_path = os.path.join(NODE_FILES_DIR, node_ip, file_to_get)
     print 'Thread %s -> %s trying to get file %s and offsets: %s' % (
             thread_name, node_ip, file_to_get, str(offsets_to_get))
+    shared_lock.release()
+    file_path = os.path.join(NODE_FILES_DIR, node_ip, file_to_get)
     # TODO: establish socket connection and receive bytes to write to file
     # read from /node-files and then update the offset; using version #
     while True:
@@ -397,12 +393,16 @@ def thread_func(node_ip, zk_handle, thread_data, active_threads, shared_lock):
                 zk_handle.set(file_path, bytes(znode_offsets), file_version)
             except kazoo.exceptions.BadVersionError as e:
                 continue
+            shared_lock.acquire()
             print 'Thread %s -> %s successfully updated file %s with offsets: %s' % (thread_name, node_ip, file_to_get,
                     str(updated_offsets))
+            shared_lock.release()
             break
         else:
             # TODO: create the file's znode under /node-files
+            shared_lock.acquire()
             print 'Thread %s -> %s shouldn\'t be here' % (thread_name, node_ip)
+            shared_lock.release()
             break
     shared_lock.acquire()
     thread_data.clear()
@@ -419,37 +419,41 @@ def main(node_ip):
     thread1_data = {}
     thread2_data = {}
     active_threads = {THREAD1: None, THREAD2: None}
-    # use shared_lock to read/write active_threads and print to stdou
+    # use shared_lock to read/write active_threads and print to stdout
     shared_lock = threading.Lock()
 
     while True:
+        shared_lock.acquire()
         current_files = get_current_file_data(node_ip, zk_handle)
         missing_files = get_missing_file_data(node_ip, zk_handle)
         nodes_with_missing_files = get_nodes_with_missing_files(node_ip,
                 zk_handle, missing_files)
         if not nodes_with_missing_files:
+            shared_lock.release()
             time.sleep(5)  # wait 5 seconds before checking again
             continue
-
-#        shared_lock.acquire()
-#        print '%s -> %s\'s current files: %s' % ('main thread', node_ip,
-#                str(current_files))
-#        print '%s -> %s\'s missing files: %s' % ('main thread', node_ip,
-#                str(missing_files))
-#        print '%s -> Nodes that contain the missing files of %s: %s' % (
-#                'main thread', node_ip, str(nodes_with_missing_files))
-#        shared_lock.release()
-
+        print '%s -> %s\'s current files: %s' % ('main thread', node_ip,
+                str(current_files))
+        print '%s -> %s\'s missing files: %s' % ('main thread', node_ip,
+                str(missing_files))
+        print '%s -> Nodes that contain the missing files of %s: %s' % (
+                'main thread', node_ip, str(nodes_with_missing_files))
         # order the nodes with the missing files based on number of missing
         # files
         nodes_with_missing_files = OrderedDict(sorted(
                 nodes_with_missing_files.items(), key=lambda t: len(t[1])))
-
-        print 'active_threads:', str(active_threads)
-
-        shared_lock.acquire()
+        # a node cannot contact the same node simultaneously, so delete nodes
+        # from nodes_with_missing_files if they are already being used in
+        # thread1_data/thread2_data
+        for node, _ in thread1_data.iteritems():
+            if node in nodes_with_missing_files:
+                del nodes_with_missing_files[node]
+        for node, _ in thread2_data.iteritems():
+            if node in nodes_with_missing_files:
+                del nodes_with_missing_files[node]
+        # assign nodes, files, and offsets from nodes_with_missing_files to
+        # thread1_data/thread2_data
         if not active_threads[THREAD1] and nodes_with_missing_files.items():
-            print 'testdebug1'
             node, missing_files = nodes_with_missing_files.items()[0]
             del nodes_with_missing_files[node]
             random_file, random_offset = get_random_file_offset(missing_files,
@@ -460,7 +464,6 @@ def main(node_ip):
                     active_threads, shared_lock))
             active_threads[THREAD1].start()
         if not active_threads[THREAD2] and nodes_with_missing_files.items():
-            print 'testdebug2'
             node, missing_files = nodes_with_missing_files.items()[0]
             del nodes_with_missing_files[node]
             random_file, random_offset = get_random_file_offset(
@@ -471,6 +474,7 @@ def main(node_ip):
                     active_threads, shared_lock))
             active_threads[THREAD2].start()
         shared_lock.release()
+        time.sleep(5)  # wait 5 seconds before checking again
 
     zk_handle.stop()
     zk_handle.close()
