@@ -162,11 +162,11 @@ def get_nodes_with_missing_files(node_ip, zk_handle, missing_files):
             end_offset = None
             if curr_offset[0] >= offset[0] and curr_offset[0] <= offset[1]:
                 start_offset = curr_offset[0]
-            if offset[1] <= curr_offset[1] and start_offset:
+            if offset[1] <= curr_offset[1] and start_offset is not None:
                 end_offset = offset[1]
-            elif offset[1] >= curr_offset[1] and start_offset:
+            elif offset[1] >= curr_offset[1] and start_offset is not None:
                 end_offset = curr_offset[1]
-            if start_offset and end_offset:
+            if start_offset is not None and end_offset is not None:
                 return (start_offset, end_offset)
         return None
 
@@ -282,7 +282,7 @@ def get_random_file_offset(missing_files, other_thread_data):
     {'n1.f1.txt': [(0, 0), (80, 200)], 'n2.f2.txt': [(8, 9)]}
 
     Example other_thread_data:
-    {'n1.f1.txt': [(0, 0), (93, 192)], 'n2.f2.txt': [(9, 9)]}
+    {'172.16.1.10': ('n1.f1.txt', (0, 200))}
 
     Example return values:
     ('n1.f1.txt', (80, 92))
@@ -331,13 +331,16 @@ def get_random_file_offset(missing_files, other_thread_data):
             missing_offsets.append((add_end_off + 1, missing_end_off))
         list.sort(missing_offsets)
 
+    if other_thread_data:
+        # example other_thread_file: ('n2.f2.txt', (0, 200))
+        other_thread_file = other_thread_data[other_thread_data.keys()[0]]
+    else:
+        other_thread_file = None
     missing_file_names = missing_files.keys()
     random.shuffle(missing_file_names)
     for random_file in missing_file_names:
-        # FIXME: other_thread_data is formatted like this:
-        #        {'172.16.1.10': ('n1.f1.txt', (0, 200))}
-        if random_file in other_thread_data:
-            other_thread_offset_ranges = other_thread_data[random_file]
+        if other_thread_data and random_file == other_thread_file[0]:
+            other_thread_offset_ranges = other_thread_file[1]
             # remove offsets from missing_files that exist in
             # other_thread_offset_ranges, and update missing_files list using
             # add_missing_offsets() with offsets from other_thread_offset_ranges
@@ -410,7 +413,7 @@ def thread_func(node_ip, zk_handle, thread_data, active_threads, shared_lock):
     shared_lock.release()
 
 def main(node_ip):
-    zk_handle = KazooClient(hosts='127.0.0.1:2181')
+    zk_handle = KazooClient(hosts='10.103.0.4:2181')
     try:
         zk_handle.start()
     except:
