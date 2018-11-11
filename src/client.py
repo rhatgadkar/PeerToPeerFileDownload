@@ -7,6 +7,7 @@ import threading
 from collections import OrderedDict
 import random
 import time
+import socket
 
 NODE_FILES_DIR = '/node-files'
 ALL_FILES_DIR = '/all-files'
@@ -14,6 +15,9 @@ ALIVE_NODES_DIR = '/alive-nodes'
 
 THREAD1 = 'thread1'
 THREAD2 = 'thread2'
+
+def get_all_alive_nodes(zk_handle):
+    return zk_handle.get_children(os.path.join(ALIVE_NODES_DIR))
 
 def parse_offsets(offset_input):
     """
@@ -392,6 +396,51 @@ def get_random_file_offset(missing_files, other_thread_data):
         return (random_file, (first_offset, last_offset))
     return None
 
+def download_file(node_to_get_from, file_name, byte_range, shared_lock,
+        node_ip, thread_name):
+    sock_timeout = 5  # 5 seconds
+    retries = 0  # will only allow up to 5 retries
+    first_byte = None
+    last_byte = None
+    server_port = 4950
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.settimeout(sock_timeout)
+    for i in range(byte_range[0], byte_range[1] + 1):
+        req_msg = '%s,%s' % (file_name, str(i))  # '[file name],[offset]'
+        sock.sendto(req_msg, (node_to_get_from, server_port))
+        try:
+            data, (addr, port) = sock.recvfrom(1)  # receive a byte
+            if addr != node_to_get_from and port != server_port:
+                i -= 1
+                continue
+            # write to file
+            fd = os.open(file_name, os.O_WRONLY | os.O_CREAT)
+            os.lseek(fd, i, os.SEEK_SET)
+            os.write(fd, data)
+            os.close(fd)
+            if not first_byte:
+                first_byte = i
+            last_byte = i
+            retries = 0
+        except socket.timeout:
+            if retries == 5:
+                break
+            retries += 1
+            continue
+    if first_byte is None or last_byte is None:
+        shared_lock.acquire()
+        print '<%s> Thread %s -> %s did not get file %s and offsets: %s from %s' % (
+                str(time.time()), thread_name, node_ip, file_name,
+                str(byte_range), node_to_get_from)
+        shared_lock.release()
+        return (None, None)
+    shared_lock.acquire()
+    print '<%s> Thread %s -> %s got file %s and offsets: %s from %s' % (
+            str(time.time()), thread_name, node_ip, file_name,
+            str((first_byte, last_byte)), node_to_get_from)
+    shared_lock.release()
+    return (first_byte, last_byte)
+
 def thread_func(node_ip, zk_handle, thread_data, active_threads, shared_lock):
     thread_name = threading.current_thread().getName()
     shared_lock.acquire()
@@ -405,14 +454,25 @@ def thread_func(node_ip, zk_handle, thread_data, active_threads, shared_lock):
             str(offsets_to_get), node_to_get_from)
     shared_lock.release()
     file_path = os.path.join(NODE_FILES_DIR, node_ip, file_to_get)
-    # TODO: establish socket connection and receive bytes to write to file
-    # read from /node-files and then update the offset; using version #
+
+    # receive bytes and write to file
+    start_off_got, end_off_got = download_file(node_to_get_from, file_to_get,
+            offsets_to_get, shared_lock, node_ip, thread_name)
+    if start_off_got is None or end_off_got is None:
+        shared_lock.acquire()
+        thread_data.clear()
+        active_threads[thread_name] = None
+        shared_lock.release()
+        return
+
+    # update znodes with new file offsets
     while True:
         current_files = get_current_file_data(node_ip, zk_handle)
         if file_to_get in current_files:
             file_version = current_files[file_to_get][0]
             file_offsets = current_files[file_to_get][1]
-            updated_offsets = update_file_offsets(file_offsets, offsets_to_get)
+            updated_offsets = update_file_offsets(file_offsets,
+                    (start_off_got, end_off_got))
             # update the file's znode under /node-files
             znode_offsets = get_znode_offsets(updated_offsets)
             try:
@@ -431,7 +491,7 @@ def thread_func(node_ip, zk_handle, thread_data, active_threads, shared_lock):
             except  kazoo.exceptions.NodeExistsError as e:
                 # possible race condition with other thread
                 continue
-            znode_offsets = get_znode_offsets([offsets_to_get])
+            znode_offsets = get_znode_offsets([(start_off_got, end_off_got)])
             try:
                 zk_handle.set(file_path, bytes(znode_offsets))
             except kazoo.exceptions.BadVersionError as e:
@@ -439,7 +499,7 @@ def thread_func(node_ip, zk_handle, thread_data, active_threads, shared_lock):
             shared_lock.acquire()
             print '<%s> Thread %s -> %s successfully created file %s with offsets: %s' % (
                     str(time.time()), thread_name, node_ip, file_to_get,
-                    str(offsets_to_get))
+                    str((start_off_got, end_off_got)))
             shared_lock.release()
             break
     shared_lock.acquire()
@@ -448,11 +508,37 @@ def thread_func(node_ip, zk_handle, thread_data, active_threads, shared_lock):
     shared_lock.release()
 
 def main(node_ip):
-    zk_handle = KazooClient(hosts='10.103.0.4:2181')
+    zk_handle = KazooClient(hosts='172.16.1.10:2181')
     try:
         zk_handle.start()
     except:
         raise Exception('Could not establish connection to ZK server')
+
+    zk_handle.create(os.path.join(ALIVE_NODES_DIR, node_ip), ephemeral=True)
+    if zk_handle.exists(os.path.join(NODE_FILES_DIR, node_ip)):
+        # this is a recovering node - don't add files to NODE_FILES_DIR and
+        # ALL_FILES_DIR
+        pass
+    else:
+        # this is a new node - add files to NODE_FILES_DIR and ALL_FILES_DIR
+        zk_handle.create(os.path.join(NODE_FILES_DIR, node_ip))
+        curr_dir_files = os.listdir('.')
+        txt_files = []
+        for f in curr_dir_files:
+            if f.endswith('.txt'):
+                f_stat = os.stat(f)
+                f_len = f_stat.st_size
+                start_off = 0
+                end_off = f_len - 1
+                offset = [(start_off, end_off)]
+                znode_offset = get_znode_offsets(offset)
+                txt_files.append((f, znode_offset))
+        for f, znode_off in txt_files:
+            zk_handle.create(os.path.join(NODE_FILES_DIR, node_ip, f),
+                    value=bytes(znode_off))
+        for f, znode_off in txt_files:
+            zk_handle.create(os.path.join(ALL_FILES_DIR, f),
+                    value=bytes(znode_off))
 
     thread1_data = {}
     thread2_data = {}
@@ -490,6 +576,11 @@ def main(node_ip):
         for node, _ in thread2_data.iteritems():
             if node in nodes_with_missing_files:
                 del nodes_with_missing_files[node]
+        # delete nodes from nodes_with_missing_files if they are not alive
+        all_alive_nodes = get_all_alive_nodes(zk_handle)
+        for key in nodes_with_missing_files.keys():
+            if key not in all_alive_nodes:
+                del nodes_with_missing_files[key]
         # assign nodes, files, and offsets from nodes_with_missing_files to
         # thread1_data/thread2_data
         if not active_threads[THREAD1] and nodes_with_missing_files.items():
