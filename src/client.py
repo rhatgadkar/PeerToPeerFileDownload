@@ -329,15 +329,53 @@ def get_random_file_offset(missing_files, other_thread_data):
             other_thread_offset_range: (220, 319)
         """
         # Example overlaps:
-        # add_offset = (5, 10)  missing_offset = (0, 11)  -> [(0, 4), (11, 11)]
-        # add_offset = (5, 11)  missing_offset = (0, 11)  -> [(0, 4)]
-        # add_offset = (0, 5)   missing_offset = (0, 11)  -> [(6, 11)]
-        missing_offset = get_tuple_containing_curr(missing_offsets, add_offset)
-        if not missing_offset:
-            # other thread is already getting this offset
-            return
+        # add_offset = (5, 10)       missing_offset = (0, 11)  -> [(0, 4), (11, 11)]
+        # add_offset = (5, 11)       missing_offset = (0, 11)  -> [(0, 4)]
+        # add_offset = (0, 5)        missing_offset = (0, 11)  -> [(6, 11)]
+        # 1. add_offset = (1417, 1516)  missing_offsets = [(435, 523), (1398, 1447), (3699, 3731)]
+        #                                                      -> [(435, 523), (1398, 1416), (3699, 3731)]
+        # 2. add_offset = (3000, 3700)  missing_offsets = [(435, 523), (1398, 1447), (3699, 3731)]
+        #                                                      -> [(435, 523), (1398, 1447), (3701, 3731)]
+        # 3. add_offset = (1440, 3700)  missing_offsets = [(435, 523), (1398, 1447), (3699, 3731)]
+        #                                                      -> [(435, 523), (1398, 1439), (3701, 3731)]
+        # 4. add_offset = (1447, 3699)  missing_offsets = [(435, 523), (1398, 1447), (3699, 3731)]
+        #                                                      -> [(435, 523), (1398, 1446), (3700, 3731)]
+        # 5. add_offset = (1398, 3699)  missing_offsets = [(435, 523), (1398, 1447), (3699, 3731)]
+        #                                                      -> [(435, 523), (3700, 3731)]
+        # 6. add_offset = (1200, 1398)  missing_offsets = [(435, 523), (1398, 1447), (3699, 3731)]
+        #                                                      -> [(435, 523), (1399, 1447), (3699, 3731)]
+        # 7. add_offset = (1397, 3700)  missing_offsets = [(435, 523), (1398, 1447), (3699, 3731)]
+        #                                                      -> [(435, 523), (3701, 3731)]
         add_start_off = add_offset[0]
         add_end_off = add_offset[1]
+        missing_offset = get_tuple_containing_curr(missing_offsets, add_offset)
+        if not missing_offset:
+            # conditions 1 - 7
+
+            # XXX: There's probably a more cleaner way to handle conditions
+            #      1 - 7.  Consider using a helper method that finds tuples in
+            #      missing_offsets that intersect with add_offset.
+            to_delete = []
+            to_add = []
+            for mo in missing_offsets:
+                if add_start_off > mo[0] and add_end_off > mo[1] and add_start_off <= mo[1]:
+                    # condition 1, 3, 4
+                    to_delete.append(mo)
+                    to_add.append((mo[0], add_start_off - 1))
+                elif add_end_off >= mo[0] and add_end_off < mo[1] and add_start_off <= mo[0]:
+                    # condition 2, 3, 4, 6
+                    to_delete.append(mo)
+                    to_add.append((add_end_off + 1, mo[1]))
+                elif add_start_off <= mo[0] and add_end_off >= mo[1]:
+                    # condition 5, 7
+                    to_delete.append(mo)
+            for item in to_delete:
+                missing_offsets.remove(item)
+            for item in to_add:
+                missing_offsets.append(item)
+            list.sort(missing_offsets)
+            return
+
         missing_start_off = missing_offset[0]
         missing_end_off = missing_offset[1]
         missing_offsets.remove(missing_offset)
@@ -347,11 +385,10 @@ def get_random_file_offset(missing_files, other_thread_data):
             # (add_end_off + 1, missing_end_off)
             missing_offsets.append((missing_start_off, add_start_off - 1))
             missing_offsets.append((add_end_off + 1, missing_end_off))
-        elif add_end_off >= missing_end_off:
+        elif add_end_off == missing_end_off:
             # create tuple: (missing_start_off, add_start_off - 1)
             missing_offsets.append((missing_start_off, add_start_off - 1))
-        elif add_start_off <= missing_start_off:
-            # XXX: need to check if the condition for this case is correct
+        elif add_start_off == missing_start_off:
             # create tuple: (add_end_off + 1, missing_end_off)
             missing_offsets.append((add_end_off + 1, missing_end_off))
         list.sort(missing_offsets)
