@@ -23,6 +23,8 @@ def parse_offsets(offset_input):
     Return: [(0, 200), (800, 1000)]
     """
     to_return = []
+    if not offset_input:
+        return to_return
     for offset_range in offset_input.split(';'):
         start, end = offset_range.split(',')
         to_return.append( (int(start), int(end)) )
@@ -36,7 +38,6 @@ def get_znode_offsets(offset_input):
     Return: 0,200;800,1000
     """
     to_return = ''
-    list.sort(offset_input)
     for i in range(len(offset_input)):
         curr_range = offset_input[i]
         if i > 0:
@@ -67,7 +68,11 @@ def get_tuple_containing_curr(all_offsets, curr_offset):
           curr_offset = (500, 550)
     The function will return: (500, 600)
     """
+    if not curr_offset:
+        return None
     for offset in all_offsets:
+        if not offset:
+            continue
         if curr_offset[0] >= offset[0] and offset[1] >= curr_offset[1]:
             return offset
     return None
@@ -306,12 +311,27 @@ def get_random_file_offset(missing_files, other_thread_data):
 
         add_offset will not be equal to any offset in missing_offsets, because
         that offset will be removed from missing_offsets.
+
+        Example situation:
+        main thread -> 172.16.1.11's current files: {u'n3.f1.txt': (3, [(0, 200)]), u'n2.f1.txt': (0, [(0, 100)]), u'n1.f1.txt': (3, [(90, 189), (380, 500)]), u'n2.f2.txt': (0, [(0, 50)])}
+        main thread -> 172.16.1.11's missing files: {u'n1.f1.txt': [(0, 89), (190, 379)]}
+        main thread -> Nodes that contain the missing files of 172.16.1.11: {u'172.16.1.10': {u'n1.f1.txt': [(0, 89), (190, 379)]}, u'172.16.1.12': {u'n1.f1.txt': [(190, 273)]}}
+        missing_files: {u'n1.f1.txt': [(0, 89), (190, 379)]}  -> thread 1 missing_files from 172.16.1.10 (getting (220, 319))
+        other_thread_file: None                               ->
+        missing_files: {u'n1.f1.txt': [(190, 273)]}           -> thread 2 missing_files from 172.16.1.12
+        other_thread_file: (u'n1.f1.txt', (220, 319))         -> missing_files should be: [(190, 219)]
+        before add_missing_offset():
+            missing_files[random_file]: [(190, 273)]
+            other_thread_offset_range: (220, 319)
         """
         # Example overlaps:
         # add_offset = (5, 10)  missing_offset = (0, 11)  -> [(0, 4), (11, 11)]
         # add_offset = (5, 11)  missing_offset = (0, 11)  -> [(0, 4)]
         # add_offset = (0, 5)   missing_offset = (0, 11)  -> [(6, 11)]
         missing_offset = get_tuple_containing_curr(missing_offsets, add_offset)
+        if not missing_offset:
+            # other thread is already getting this offset
+            return
         add_start_off = add_offset[0]
         add_end_off = add_offset[1]
         missing_start_off = missing_offset[0]
@@ -323,10 +343,11 @@ def get_random_file_offset(missing_files, other_thread_data):
             # (add_end_off + 1, missing_end_off)
             missing_offsets.append((missing_start_off, add_start_off - 1))
             missing_offsets.append((add_end_off + 1, missing_end_off))
-        elif add_end_off == missing_end_off:
+        elif add_end_off >= missing_end_off:
             # create tuple: (missing_start_off, add_start_off - 1)
             missing_offsets.append((missing_start_off, add_start_off - 1))
-        elif add_start_off == missing_start_off:
+        elif add_start_off <= missing_start_off:
+            # XXX: need to check if the condition for this case is correct
             # create tuple: (add_end_off + 1, missing_end_off)
             missing_offsets.append((add_end_off + 1, missing_end_off))
         list.sort(missing_offsets)
@@ -340,16 +361,17 @@ def get_random_file_offset(missing_files, other_thread_data):
     random.shuffle(missing_file_names)
     for random_file in missing_file_names:
         if other_thread_data and random_file == other_thread_file[0]:
-            other_thread_offset_ranges = other_thread_file[1]
+            other_thread_offset_range = other_thread_file[1]
             # remove offsets from missing_files that exist in
             # other_thread_offset_ranges, and update missing_files list using
             # add_missing_offsets() with offsets from other_thread_offset_ranges
-            for other_thread_offset_range in other_thread_offset_ranges:
-                if other_thread_offset_range in missing_files[random_file]:
-                    missing_files[random_file].remove(other_thread_offset_range)
-                else:
-                    add_missing_offset(missing_files[random_file],
-                            other_thread_offset_range)
+            if not other_thread_offset_range:
+                continue
+            if other_thread_offset_range in missing_files[random_file]:
+                missing_files[random_file].remove(other_thread_offset_range)
+            else:
+                add_missing_offset(missing_files[random_file],
+                        other_thread_offset_range)
         if not missing_files[random_file]:
             continue
         # pick any offset of length at most 100 for the file and return
@@ -402,9 +424,19 @@ def thread_func(node_ip, zk_handle, thread_data, active_threads, shared_lock):
             shared_lock.release()
             break
         else:
-            # TODO: create the file's znode under /node-files
+            try:
+                zk_handle.create(file_path)
+            except  kazoo.exceptions.NodeExistsError as e:
+                # possible race condition with other thread
+                continue
+            znode_offsets = get_znode_offsets([offsets_to_get])
+            try:
+                zk_handle.set(file_path, bytes(znode_offsets))
+            except kazoo.exceptions.BadVersionError as e:
+                raise RuntimeError('Error in creating file under /node-files')
             shared_lock.acquire()
-            print 'Thread %s -> %s shouldn\'t be here' % (thread_name, node_ip)
+            print 'Thread %s -> %s successfully created file %s with offsets: %s' % (thread_name, node_ip, file_to_get,
+                    str(offsets_to_get))
             shared_lock.release()
             break
     shared_lock.acquire()
@@ -459,23 +491,31 @@ def main(node_ip):
         if not active_threads[THREAD1] and nodes_with_missing_files.items():
             node, missing_files = nodes_with_missing_files.items()[0]
             del nodes_with_missing_files[node]
-            random_file, random_offset = get_random_file_offset(missing_files,
-                    thread2_data)
-            thread1_data[node] = (random_file, random_offset)
-            active_threads[THREAD1] = threading.Thread(target=thread_func,
-                    name=THREAD1, args=(node_ip, zk_handle, thread1_data,
-                    active_threads, shared_lock))
-            active_threads[THREAD1].start()
+            # get_random_file_offset() returns None when not able to find offset
+            # to get
+            ret = get_random_file_offset(missing_files, thread2_data)
+            if ret:
+                random_file = ret[0]
+                random_offset = ret[1]
+                thread1_data[node] = (random_file, random_offset)
+                active_threads[THREAD1] = threading.Thread(target=thread_func,
+                        name=THREAD1, args=(node_ip, zk_handle, thread1_data,
+                        active_threads, shared_lock))
+                active_threads[THREAD1].start()
         if not active_threads[THREAD2] and nodes_with_missing_files.items():
             node, missing_files = nodes_with_missing_files.items()[0]
             del nodes_with_missing_files[node]
-            random_file, random_offset = get_random_file_offset(
-                    missing_files, thread1_data)
-            thread2_data[node] = (random_file, random_offset)
-            active_threads[THREAD2] = threading.Thread(target=thread_func,
-                    name=THREAD2, args=(node_ip, zk_handle, thread2_data,
-                    active_threads, shared_lock))
-            active_threads[THREAD2].start()
+            # get_random_file_offset() returns None when not able to find offset
+            # to get
+            ret = get_random_file_offset(missing_files, thread1_data)
+            if ret:
+                random_file = ret[0]
+                random_offset = ret[1]
+                thread2_data[node] = (random_file, random_offset)
+                active_threads[THREAD2] = threading.Thread(target=thread_func,
+                        name=THREAD2, args=(node_ip, zk_handle, thread2_data,
+                        active_threads, shared_lock))
+                active_threads[THREAD2].start()
         shared_lock.release()
         time.sleep(5)  # wait 5 seconds before checking again
 
