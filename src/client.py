@@ -400,8 +400,9 @@ def thread_func(node_ip, zk_handle, thread_data, active_threads, shared_lock):
     node_to_get_from = thread_data.keys()[0]
     file_to_get = thread_data[node_to_get_from][0]
     offsets_to_get = thread_data[node_to_get_from][1]
-    print 'Thread %s -> %s trying to get file %s and offsets: %s' % (
-            thread_name, node_ip, file_to_get, str(offsets_to_get))
+    print '<%s> Thread %s -> %s trying to get file %s and offsets: %s from %s' % (
+            str(time.time()), thread_name, node_ip, file_to_get,
+            str(offsets_to_get), node_to_get_from)
     shared_lock.release()
     file_path = os.path.join(NODE_FILES_DIR, node_ip, file_to_get)
     # TODO: establish socket connection and receive bytes to write to file
@@ -419,7 +420,8 @@ def thread_func(node_ip, zk_handle, thread_data, active_threads, shared_lock):
             except kazoo.exceptions.BadVersionError as e:
                 continue
             shared_lock.acquire()
-            print 'Thread %s -> %s successfully updated file %s with offsets: %s' % (thread_name, node_ip, file_to_get,
+            print '<%s> Thread %s -> %s successfully updated file %s with offsets: %s' % (
+                    str(time.time()), thread_name, node_ip, file_to_get,
                     str(updated_offsets))
             shared_lock.release()
             break
@@ -435,7 +437,8 @@ def thread_func(node_ip, zk_handle, thread_data, active_threads, shared_lock):
             except kazoo.exceptions.BadVersionError as e:
                 raise RuntimeError('Error in creating file under /node-files')
             shared_lock.acquire()
-            print 'Thread %s -> %s successfully created file %s with offsets: %s' % (thread_name, node_ip, file_to_get,
+            print '<%s> Thread %s -> %s successfully created file %s with offsets: %s' % (
+                    str(time.time()), thread_name, node_ip, file_to_get,
                     str(offsets_to_get))
             shared_lock.release()
             break
@@ -467,12 +470,13 @@ def main(node_ip):
             shared_lock.release()
             time.sleep(5)  # wait 5 seconds before checking again
             continue
-        print '%s -> %s\'s current files: %s' % ('main thread', node_ip,
-                str(current_files))
-        print '%s -> %s\'s missing files: %s' % ('main thread', node_ip,
-                str(missing_files))
-        print '%s -> Nodes that contain the missing files of %s: %s' % (
-                'main thread', node_ip, str(nodes_with_missing_files))
+        print '<%s> %s -> %s\'s current files: %s' % (str(time.time()),
+                'main thread', node_ip, str(current_files))
+        print '<%s> %s -> %s\'s missing files: %s' % (str(time.time()),
+                'main thread', node_ip, str(missing_files))
+        print '<%s> %s -> Nodes that contain the missing files of %s: %s' % (
+                str(time.time()), 'main thread', node_ip,
+                str(nodes_with_missing_files))
         # order the nodes with the missing files based on number of missing
         # files
         nodes_with_missing_files = OrderedDict(sorted(
