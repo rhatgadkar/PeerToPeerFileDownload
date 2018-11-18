@@ -618,6 +618,15 @@ def main(node_ip):
         for key in nodes_with_missing_files.keys():
             if key not in all_alive_nodes:
                 del nodes_with_missing_files[key]
+
+        # XXX: The below is only used for experiment 4:
+        # Delete 172.16.1.12 and 172.16.1.13 nodes from nodes_with_missing_files
+        # Uncomment the four below lines when running experiment 4
+        # if '172.16.1.12' in nodes_with_missing_files.keys():
+        #     del nodes_with_missing_files['172.16.1.12']
+        # if '172.16.1.13' in nodes_with_missing_files.keys():
+        #     del nodes_with_missing_files['172.16.1.13']
+
         # assign nodes, files, and offsets from nodes_with_missing_files to
         # thread1_data/thread2_data
         if not active_threads[THREAD1] and nodes_with_missing_files.items():
