@@ -17,6 +17,8 @@ def main(node_ip):
             os.lseek(fd, int(offset), os.SEEK_SET)
             data = os.read(fd, 1)
             os.close(fd)
+            if data == '':
+                raise
             # send to (addr, port)
             sock.sendto(data, (addr, port))
             print 'sent: %s' % data
