@@ -1,82 +1,82 @@
-<1542594393.99> main thread -> 172.16.1.13's current files: {u'n3.f1.txt': (0, [(0, 4095)])}
-<1542594393.99> main thread -> 172.16.1.13's missing files: {u'n2.f1.txt': [(0, 2047)], u'n1.f1.txt': [(0, 1023)], u'n2.f2.txt': [(0, 3071)]}
-<1542594393.99> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'n1.f1.txt': [(0, 1023)]}, u'172.16.1.12': {u'n2.f1.txt': [(0, 2047)], u'n2.f2.txt': [(0, 3071)]}}
-<1542594393.99> Thread thread1 -> 172.16.1.13 trying to get file n1.f1.txt and offsets: (221, 320) from 172.16.1.11
-<1542594393.99> Thread thread2 -> 172.16.1.13 trying to get file n2.f1.txt and offsets: (1169, 1268) from 172.16.1.12
-<1542594394.02> Thread thread2 -> 172.16.1.13 got file n2.f1.txt and offsets: (1169, 1268) from 172.16.1.12
-<1542594394.02> Thread thread1 -> 172.16.1.13 got file n1.f1.txt and offsets: (221, 320) from 172.16.1.11
-<1542594394.02> Thread thread2 -> 172.16.1.13 successfully created file n2.f1.txt with offsets: (1169, 1268)
-<1542594394.02> Thread thread1 -> 172.16.1.13 successfully created file n1.f1.txt with offsets: (221, 320)
-<1542594399.02> main thread -> 172.16.1.13's current files: {u'n3.f1.txt': (0, [(0, 4095)]), u'n2.f1.txt': (1, [(1169, 1268)]), u'n1.f1.txt': (1, [(221, 320)])}
-<1542594399.02> main thread -> 172.16.1.13's missing files: {u'n2.f1.txt': [(0, 1168), (1269, 2047)], u'n1.f1.txt': [(0, 220), (321, 1023)], u'n2.f2.txt': [(0, 3071)]}
-<1542594399.02> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'n1.f1.txt': [(0, 220), (321, 1023)]}, u'172.16.1.12': {u'n2.f1.txt': [(0, 1168), (1269, 2047)], u'n2.f2.txt': [(0, 3071)]}}
-<1542594399.02> Thread thread1 -> 172.16.1.13 trying to get file n1.f1.txt and offsets: (121, 220) from 172.16.1.11
-<1542594399.02> Thread thread2 -> 172.16.1.13 trying to get file n2.f2.txt and offsets: (2956, 3055) from 172.16.1.12
-<1542594399.05> Thread thread1 -> 172.16.1.13 got file n1.f1.txt and offsets: (121, 220) from 172.16.1.11
-<1542594399.05> Thread thread2 -> 172.16.1.13 got file n2.f2.txt and offsets: (2956, 3055) from 172.16.1.12
-<1542594399.06> Thread thread1 -> 172.16.1.13 successfully updated file n1.f1.txt with offsets: [(121, 320)]
-<1542594399.06> Thread thread2 -> 172.16.1.13 successfully created file n2.f2.txt with offsets: (2956, 3055)
-<1542594404.06> main thread -> 172.16.1.13's current files: {u'n3.f1.txt': (0, [(0, 4095)]), u'n2.f1.txt': (1, [(1169, 1268)]), u'n1.f1.txt': (2, [(121, 320)]), u'n2.f2.txt': (1, [(2956, 3055)])}
-<1542594404.06> main thread -> 172.16.1.13's missing files: {u'n2.f1.txt': [(0, 1168), (1269, 2047)], u'n1.f1.txt': [(0, 120), (321, 1023)], u'n2.f2.txt': [(0, 2955), (3056, 3071)]}
-<1542594404.06> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'n1.f1.txt': [(0, 120), (321, 1023)]}, u'172.16.1.12': {u'n2.f1.txt': [(0, 1168), (1269, 2047)], u'n2.f2.txt': [(0, 2955), (3056, 3071)]}}
-<1542594404.06> Thread thread1 -> 172.16.1.13 trying to get file n1.f1.txt and offsets: (21, 120) from 172.16.1.11
-<1542594404.06> Thread thread2 -> 172.16.1.13 trying to get file n2.f2.txt and offsets: (2525, 2624) from 172.16.1.12
-<1542594404.08> Thread thread1 -> 172.16.1.13 got file n1.f1.txt and offsets: (21, 120) from 172.16.1.11
-<1542594404.09> Thread thread1 -> 172.16.1.13 successfully updated file n1.f1.txt with offsets: [(21, 320)]
-<1542594404.09> Thread thread2 -> 172.16.1.13 got file n2.f2.txt and offsets: (2525, 2624) from 172.16.1.12
-<1542594404.09> Thread thread2 -> 172.16.1.13 successfully updated file n2.f2.txt with offsets: [(2525, 2624), (2956, 3055)]
-<1542594409.08> main thread -> 172.16.1.13's current files: {u'n3.f1.txt': (0, [(0, 4095)]), u'n2.f1.txt': (1, [(1169, 1268)]), u'n1.f1.txt': (3, [(21, 320)]), u'n2.f2.txt': (2, [(2525, 2624), (2956, 3055)])}
-<1542594409.08> main thread -> 172.16.1.13's missing files: {u'n2.f1.txt': [(0, 1168), (1269, 2047)], u'n1.f1.txt': [(0, 20), (321, 1023)], u'n2.f2.txt': [(0, 2524), (2625, 2955), (3056, 3071)]}
-<1542594409.08> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'n1.f1.txt': [(0, 20), (321, 1023)]}, u'172.16.1.12': {u'n2.f1.txt': [(0, 1168), (1269, 2047)], u'n2.f2.txt': [(0, 2524), (2625, 2955), (3056, 3071)]}}
-<1542594409.08> Thread thread1 -> 172.16.1.13 trying to get file n1.f1.txt and offsets: (0, 20) from 172.16.1.11
-<1542594409.08> Thread thread2 -> 172.16.1.13 trying to get file n2.f2.txt and offsets: (3056, 3071) from 172.16.1.12
-<1542594409.09> Thread thread2 -> 172.16.1.13 got file n2.f2.txt and offsets: (3056, 3071) from 172.16.1.12
-<1542594409.09> Thread thread1 -> 172.16.1.13 got file n1.f1.txt and offsets: (1, 20) from 172.16.1.11
-<1542594409.09> Thread thread2 -> 172.16.1.13 successfully updated file n2.f2.txt with offsets: [(2525, 2624), (2956, 3071)]
-<1542594409.09> Thread thread1 -> 172.16.1.13 successfully updated file n1.f1.txt with offsets: [(1, 320)]
-<1542594414.12> main thread -> 172.16.1.13's current files: {u'n3.f1.txt': (0, [(0, 4095)]), u'n2.f1.txt': (1, [(1169, 1268)]), u'n1.f1.txt': (4, [(1, 320)]), u'n2.f2.txt': (3, [(2525, 2624), (2956, 3071)])}
-<1542594414.12> main thread -> 172.16.1.13's missing files: {u'n2.f1.txt': [(0, 1168), (1269, 2047)], u'n1.f1.txt': [(0, 0), (321, 1023)], u'n2.f2.txt': [(0, 2524), (2625, 2955)]}
-<1542594414.12> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'n1.f1.txt': [(0, 0), (321, 1023)]}, u'172.16.1.12': {u'n2.f1.txt': [(0, 1168), (1269, 2047)], u'n2.f2.txt': [(0, 2524), (2625, 2955)]}}
-<1542594414.12> Thread thread1 -> 172.16.1.13 trying to get file n1.f1.txt and offsets: (0, 0) from 172.16.1.11
-<1542594414.12> Thread thread2 -> 172.16.1.13 trying to get file n2.f1.txt and offsets: (542, 641) from 172.16.1.12
-<1542594414.12> Thread thread1 -> 172.16.1.13 got file n1.f1.txt and offsets: (0, 0) from 172.16.1.11
-<1542594414.12> Thread thread1 -> 172.16.1.13 successfully updated file n1.f1.txt with offsets: [(0, 320)]
-<1542594414.15> Thread thread2 -> 172.16.1.13 got file n2.f1.txt and offsets: (542, 641) from 172.16.1.12
-<1542594414.15> Thread thread2 -> 172.16.1.13 successfully updated file n2.f1.txt with offsets: [(542, 641), (1169, 1268)]
-<1542594419.15> main thread -> 172.16.1.13's current files: {u'n3.f1.txt': (0, [(0, 4095)]), u'n2.f1.txt': (2, [(542, 641), (1169, 1268)]), u'n1.f1.txt': (5, [(0, 320)]), u'n2.f2.txt': (3, [(2525, 2624), (2956, 3071)])}
-<1542594419.15> main thread -> 172.16.1.13's missing files: {u'n2.f1.txt': [(0, 541), (642, 1168), (1269, 2047)], u'n1.f1.txt': [(321, 1023)], u'n2.f2.txt': [(0, 2524), (2625, 2955)]}
-<1542594419.15> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'n1.f1.txt': [(321, 1023)]}, u'172.16.1.12': {u'n2.f1.txt': [(0, 541), (642, 1168), (1269, 2047)], u'n2.f2.txt': [(0, 2524), (2625, 2955)]}}
-<1542594419.15> Thread thread1 -> 172.16.1.13 trying to get file n1.f1.txt and offsets: (801, 900) from 172.16.1.11
-<1542594419.15> Thread thread2 -> 172.16.1.13 trying to get file n2.f1.txt and offsets: (1865, 1964) from 172.16.1.12
-<1542594419.18> Thread thread1 -> 172.16.1.13 got file n1.f1.txt and offsets: (801, 900) from 172.16.1.11
-<1542594419.18> Thread thread2 -> 172.16.1.13 got file n2.f1.txt and offsets: (1865, 1964) from 172.16.1.12
-<1542594419.19> Thread thread1 -> 172.16.1.13 successfully updated file n1.f1.txt with offsets: [(0, 320), (801, 900)]
-<1542594419.19> Thread thread2 -> 172.16.1.13 successfully updated file n2.f1.txt with offsets: [(542, 641), (1169, 1268), (1865, 1964)]
-<1542594424.19> main thread -> 172.16.1.13's current files: {u'n3.f1.txt': (0, [(0, 4095)]), u'n2.f1.txt': (3, [(542, 641), (1169, 1268), (1865, 1964)]), u'n1.f1.txt': (6, [(0, 320), (801, 900)]), u'n2.f2.txt': (3, [(2525, 2624), (2956, 3071)])}
-<1542594424.19> main thread -> 172.16.1.13's missing files: {u'n2.f1.txt': [(0, 541), (642, 1168), (1269, 1864), (1965, 2047)], u'n1.f1.txt': [(321, 800), (901, 1023)], u'n2.f2.txt': [(0, 2524), (2625, 2955)]}
-<1542594424.19> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'n2.f1.txt': [(1269, 1362)], u'n1.f1.txt': [(321, 800), (901, 1023)]}, u'172.16.1.12': {u'n2.f1.txt': [(0, 541), (642, 1168), (1269, 1864), (1965, 2047)], u'n1.f1.txt': [(901, 1023)], u'n2.f2.txt': [(0, 2524), (2625, 2955)]}}
-<1542594424.19> Thread thread1 -> 172.16.1.13 trying to get file n1.f1.txt and offsets: (914, 1013) from 172.16.1.11
-<1542594424.19> Thread thread2 -> 172.16.1.13 trying to get file n2.f2.txt and offsets: (2856, 2955) from 172.16.1.12
-<1542594424.22> Thread thread1 -> 172.16.1.13 got file n1.f1.txt and offsets: (914, 1013) from 172.16.1.11
-<1542594424.22> Thread thread2 -> 172.16.1.13 got file n2.f2.txt and offsets: (2856, 2955) from 172.16.1.12
-<1542594424.22> Thread thread1 -> 172.16.1.13 successfully updated file n1.f1.txt with offsets: [(0, 320), (801, 900), (914, 1013)]
-<1542594424.22> Thread thread2 -> 172.16.1.13 successfully updated file n2.f2.txt with offsets: [(2525, 2624), (2856, 3071)]
-<1542594429.22> main thread -> 172.16.1.13's current files: {u'n3.f1.txt': (0, [(0, 4095)]), u'n2.f1.txt': (3, [(542, 641), (1169, 1268), (1865, 1964)]), u'n1.f1.txt': (7, [(0, 320), (801, 900), (914, 1013)]), u'n2.f2.txt': (4, [(2525, 2624), (2856, 3071)])}
-<1542594429.22> main thread -> 172.16.1.13's missing files: {u'n2.f1.txt': [(0, 541), (642, 1168), (1269, 1864), (1965, 2047)], u'n1.f1.txt': [(321, 800), (901, 913), (1014, 1023)], u'n2.f2.txt': [(0, 2524), (2625, 2855)]}
-<1542594429.22> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'n2.f1.txt': [(1269, 1362)], u'n1.f1.txt': [(321, 800), (901, 913), (1014, 1023)]}, u'172.16.1.12': {u'n2.f1.txt': [(0, 541), (642, 1168), (1269, 1864), (1965, 2047)], u'n1.f1.txt': [(901, 913), (1014, 1023)], u'n2.f2.txt': [(0, 2524), (2625, 2855)]}}
-<1542594429.22> Thread thread1 -> 172.16.1.13 trying to get file n2.f1.txt and offsets: (1269, 1362) from 172.16.1.11
-<1542594429.22> Thread thread2 -> 172.16.1.13 trying to get file n1.f1.txt and offsets: (1014, 1023) from 172.16.1.12
-<1542594429.22> Thread thread2 -> 172.16.1.13 got file n1.f1.txt and offsets: (1014, 1023) from 172.16.1.12
-<1542594429.23> Thread thread2 -> 172.16.1.13 successfully updated file n1.f1.txt with offsets: [(0, 320), (801, 900), (914, 1023)]
-<1542594429.25> Thread thread1 -> 172.16.1.13 got file n2.f1.txt and offsets: (1269, 1362) from 172.16.1.11
-<1542594429.28> Thread thread1 -> 172.16.1.13 successfully updated file n2.f1.txt with offsets: [(542, 641), (1169, 1362), (1865, 1964)]
-<1542594434.26> main thread -> 172.16.1.13's current files: {u'n3.f1.txt': (0, [(0, 4095)]), u'n2.f1.txt': (4, [(542, 641), (1169, 1362), (1865, 1964)]), u'n1.f1.txt': (8, [(0, 320), (801, 900), (914, 1023)]), u'n2.f2.txt': (4, [(2525, 2624), (2856, 3071)])}
-<1542594434.26> main thread -> 172.16.1.13's missing files: {u'n2.f1.txt': [(0, 541), (642, 1168), (1363, 1864), (1965, 2047)], u'n1.f1.txt': [(321, 800), (901, 913)], u'n2.f2.txt': [(0, 2524), (2625, 2855)]}
-<1542594434.26> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'n1.f1.txt': [(321, 800), (901, 913)]}, u'172.16.1.12': {u'n2.f1.txt': [(0, 541), (642, 1168), (1363, 1864), (1965, 2047)], u'n1.f1.txt': [(901, 913)], u'n2.f2.txt': [(0, 2524), (2625, 2855)]}}
-<1542594434.26> Thread thread1 -> 172.16.1.13 trying to get file n1.f1.txt and offsets: (901, 913) from 172.16.1.11
-<1542594434.26> Thread thread2 -> 172.16.1.13 trying to get file n2.f2.txt and offsets: (2698, 2797) from 172.16.1.12
-<1542594434.26> Thread thread1 -> 172.16.1.13 got file n1.f1.txt and offsets: (901, 913) from 172.16.1.11
-<1542594434.27> Thread thread1 -> 172.16.1.13 successfully updated file n1.f1.txt with offsets: [(0, 320), (801, 1023)]
-<1542594434.29> Thread thread2 -> 172.16.1.13 got file n2.f2.txt and offsets: (2698, 2797) from 172.16.1.12
-<1542594434.31> Thread thread2 -> 172.16.1.13 successfully updated file n2.f2.txt with offsets: [(2525, 2624), (2698, 2797), (2856, 3071)]
-<1542594439.29> main thread -> 172.16.1.13's current files: {u'n3.f1.txt': (0, [(0, 4095)]), u'n2.f1.txt': (4, [(542, 641), (1169, 1362), (1865, 1964)]), u'n1.f1.tx
+<1542594393.99> main thread -> 172.16.1.13's current files: {u'f4.txt': (0, [(0, 4095)])}
+<1542594393.99> main thread -> 172.16.1.13's missing files: {u'f2.txt': [(0, 2047)], u'f1.txt': [(0, 1023)], u'f3.txt': [(0, 3071)]}
+<1542594393.99> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'f1.txt': [(0, 1023)]}, u'172.16.1.12': {u'f2.txt': [(0, 2047)], u'f3.txt': [(0, 3071)]}}
+<1542594393.99> Thread thread1 -> 172.16.1.13 trying to get file f1.txt and offsets: (221, 320) from 172.16.1.11
+<1542594393.99> Thread thread2 -> 172.16.1.13 trying to get file f2.txt and offsets: (1169, 1268) from 172.16.1.12
+<1542594394.02> Thread thread2 -> 172.16.1.13 got file f2.txt and offsets: (1169, 1268) from 172.16.1.12
+<1542594394.02> Thread thread1 -> 172.16.1.13 got file f1.txt and offsets: (221, 320) from 172.16.1.11
+<1542594394.02> Thread thread2 -> 172.16.1.13 successfully created file f2.txt with offsets: (1169, 1268)
+<1542594394.02> Thread thread1 -> 172.16.1.13 successfully created file f1.txt with offsets: (221, 320)
+<1542594399.02> main thread -> 172.16.1.13's current files: {u'f4.txt': (0, [(0, 4095)]), u'f2.txt': (1, [(1169, 1268)]), u'f1.txt': (1, [(221, 320)])}
+<1542594399.02> main thread -> 172.16.1.13's missing files: {u'f2.txt': [(0, 1168), (1269, 2047)], u'f1.txt': [(0, 220), (321, 1023)], u'f3.txt': [(0, 3071)]}
+<1542594399.02> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'f1.txt': [(0, 220), (321, 1023)]}, u'172.16.1.12': {u'f2.txt': [(0, 1168), (1269, 2047)], u'f3.txt': [(0, 3071)]}}
+<1542594399.02> Thread thread1 -> 172.16.1.13 trying to get file f1.txt and offsets: (121, 220) from 172.16.1.11
+<1542594399.02> Thread thread2 -> 172.16.1.13 trying to get file f3.txt and offsets: (2956, 3055) from 172.16.1.12
+<1542594399.05> Thread thread1 -> 172.16.1.13 got file f1.txt and offsets: (121, 220) from 172.16.1.11
+<1542594399.05> Thread thread2 -> 172.16.1.13 got file f3.txt and offsets: (2956, 3055) from 172.16.1.12
+<1542594399.06> Thread thread1 -> 172.16.1.13 successfully updated file f1.txt with offsets: [(121, 320)]
+<1542594399.06> Thread thread2 -> 172.16.1.13 successfully created file f3.txt with offsets: (2956, 3055)
+<1542594404.06> main thread -> 172.16.1.13's current files: {u'f4.txt': (0, [(0, 4095)]), u'f2.txt': (1, [(1169, 1268)]), u'f1.txt': (2, [(121, 320)]), u'f3.txt': (1, [(2956, 3055)])}
+<1542594404.06> main thread -> 172.16.1.13's missing files: {u'f2.txt': [(0, 1168), (1269, 2047)], u'f1.txt': [(0, 120), (321, 1023)], u'f3.txt': [(0, 2955), (3056, 3071)]}
+<1542594404.06> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'f1.txt': [(0, 120), (321, 1023)]}, u'172.16.1.12': {u'f2.txt': [(0, 1168), (1269, 2047)], u'f3.txt': [(0, 2955), (3056, 3071)]}}
+<1542594404.06> Thread thread1 -> 172.16.1.13 trying to get file f1.txt and offsets: (21, 120) from 172.16.1.11
+<1542594404.06> Thread thread2 -> 172.16.1.13 trying to get file f3.txt and offsets: (2525, 2624) from 172.16.1.12
+<1542594404.08> Thread thread1 -> 172.16.1.13 got file f1.txt and offsets: (21, 120) from 172.16.1.11
+<1542594404.09> Thread thread1 -> 172.16.1.13 successfully updated file f1.txt with offsets: [(21, 320)]
+<1542594404.09> Thread thread2 -> 172.16.1.13 got file f3.txt and offsets: (2525, 2624) from 172.16.1.12
+<1542594404.09> Thread thread2 -> 172.16.1.13 successfully updated file f3.txt with offsets: [(2525, 2624), (2956, 3055)]
+<1542594409.08> main thread -> 172.16.1.13's current files: {u'f4.txt': (0, [(0, 4095)]), u'f2.txt': (1, [(1169, 1268)]), u'f1.txt': (3, [(21, 320)]), u'f3.txt': (2, [(2525, 2624), (2956, 3055)])}
+<1542594409.08> main thread -> 172.16.1.13's missing files: {u'f2.txt': [(0, 1168), (1269, 2047)], u'f1.txt': [(0, 20), (321, 1023)], u'f3.txt': [(0, 2524), (2625, 2955), (3056, 3071)]}
+<1542594409.08> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'f1.txt': [(0, 20), (321, 1023)]}, u'172.16.1.12': {u'f2.txt': [(0, 1168), (1269, 2047)], u'f3.txt': [(0, 2524), (2625, 2955), (3056, 3071)]}}
+<1542594409.08> Thread thread1 -> 172.16.1.13 trying to get file f1.txt and offsets: (0, 20) from 172.16.1.11
+<1542594409.08> Thread thread2 -> 172.16.1.13 trying to get file f3.txt and offsets: (3056, 3071) from 172.16.1.12
+<1542594409.09> Thread thread2 -> 172.16.1.13 got file f3.txt and offsets: (3056, 3071) from 172.16.1.12
+<1542594409.09> Thread thread1 -> 172.16.1.13 got file f1.txt and offsets: (1, 20) from 172.16.1.11
+<1542594409.09> Thread thread2 -> 172.16.1.13 successfully updated file f3.txt with offsets: [(2525, 2624), (2956, 3071)]
+<1542594409.09> Thread thread1 -> 172.16.1.13 successfully updated file f1.txt with offsets: [(1, 320)]
+<1542594414.12> main thread -> 172.16.1.13's current files: {u'f4.txt': (0, [(0, 4095)]), u'f2.txt': (1, [(1169, 1268)]), u'f1.txt': (4, [(1, 320)]), u'f3.txt': (3, [(2525, 2624), (2956, 3071)])}
+<1542594414.12> main thread -> 172.16.1.13's missing files: {u'f2.txt': [(0, 1168), (1269, 2047)], u'f1.txt': [(0, 0), (321, 1023)], u'f3.txt': [(0, 2524), (2625, 2955)]}
+<1542594414.12> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'f1.txt': [(0, 0), (321, 1023)]}, u'172.16.1.12': {u'f2.txt': [(0, 1168), (1269, 2047)], u'f3.txt': [(0, 2524), (2625, 2955)]}}
+<1542594414.12> Thread thread1 -> 172.16.1.13 trying to get file f1.txt and offsets: (0, 0) from 172.16.1.11
+<1542594414.12> Thread thread2 -> 172.16.1.13 trying to get file f2.txt and offsets: (542, 641) from 172.16.1.12
+<1542594414.12> Thread thread1 -> 172.16.1.13 got file f1.txt and offsets: (0, 0) from 172.16.1.11
+<1542594414.12> Thread thread1 -> 172.16.1.13 successfully updated file f1.txt with offsets: [(0, 320)]
+<1542594414.15> Thread thread2 -> 172.16.1.13 got file f2.txt and offsets: (542, 641) from 172.16.1.12
+<1542594414.15> Thread thread2 -> 172.16.1.13 successfully updated file f2.txt with offsets: [(542, 641), (1169, 1268)]
+<1542594419.15> main thread -> 172.16.1.13's current files: {u'f4.txt': (0, [(0, 4095)]), u'f2.txt': (2, [(542, 641), (1169, 1268)]), u'f1.txt': (5, [(0, 320)]), u'f3.txt': (3, [(2525, 2624), (2956, 3071)])}
+<1542594419.15> main thread -> 172.16.1.13's missing files: {u'f2.txt': [(0, 541), (642, 1168), (1269, 2047)], u'f1.txt': [(321, 1023)], u'f3.txt': [(0, 2524), (2625, 2955)]}
+<1542594419.15> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'f1.txt': [(321, 1023)]}, u'172.16.1.12': {u'f2.txt': [(0, 541), (642, 1168), (1269, 2047)], u'f3.txt': [(0, 2524), (2625, 2955)]}}
+<1542594419.15> Thread thread1 -> 172.16.1.13 trying to get file f1.txt and offsets: (801, 900) from 172.16.1.11
+<1542594419.15> Thread thread2 -> 172.16.1.13 trying to get file f2.txt and offsets: (1865, 1964) from 172.16.1.12
+<1542594419.18> Thread thread1 -> 172.16.1.13 got file f1.txt and offsets: (801, 900) from 172.16.1.11
+<1542594419.18> Thread thread2 -> 172.16.1.13 got file f2.txt and offsets: (1865, 1964) from 172.16.1.12
+<1542594419.19> Thread thread1 -> 172.16.1.13 successfully updated file f1.txt with offsets: [(0, 320), (801, 900)]
+<1542594419.19> Thread thread2 -> 172.16.1.13 successfully updated file f2.txt with offsets: [(542, 641), (1169, 1268), (1865, 1964)]
+<1542594424.19> main thread -> 172.16.1.13's current files: {u'f4.txt': (0, [(0, 4095)]), u'f2.txt': (3, [(542, 641), (1169, 1268), (1865, 1964)]), u'f1.txt': (6, [(0, 320), (801, 900)]), u'f3.txt': (3, [(2525, 2624), (2956, 3071)])}
+<1542594424.19> main thread -> 172.16.1.13's missing files: {u'f2.txt': [(0, 541), (642, 1168), (1269, 1864), (1965, 2047)], u'f1.txt': [(321, 800), (901, 1023)], u'f3.txt': [(0, 2524), (2625, 2955)]}
+<1542594424.19> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'f2.txt': [(1269, 1362)], u'f1.txt': [(321, 800), (901, 1023)]}, u'172.16.1.12': {u'f2.txt': [(0, 541), (642, 1168), (1269, 1864), (1965, 2047)], u'f1.txt': [(901, 1023)], u'f3.txt': [(0, 2524), (2625, 2955)]}}
+<1542594424.19> Thread thread1 -> 172.16.1.13 trying to get file f1.txt and offsets: (914, 1013) from 172.16.1.11
+<1542594424.19> Thread thread2 -> 172.16.1.13 trying to get file f3.txt and offsets: (2856, 2955) from 172.16.1.12
+<1542594424.22> Thread thread1 -> 172.16.1.13 got file f1.txt and offsets: (914, 1013) from 172.16.1.11
+<1542594424.22> Thread thread2 -> 172.16.1.13 got file f3.txt and offsets: (2856, 2955) from 172.16.1.12
+<1542594424.22> Thread thread1 -> 172.16.1.13 successfully updated file f1.txt with offsets: [(0, 320), (801, 900), (914, 1013)]
+<1542594424.22> Thread thread2 -> 172.16.1.13 successfully updated file f3.txt with offsets: [(2525, 2624), (2856, 3071)]
+<1542594429.22> main thread -> 172.16.1.13's current files: {u'f4.txt': (0, [(0, 4095)]), u'f2.txt': (3, [(542, 641), (1169, 1268), (1865, 1964)]), u'f1.txt': (7, [(0, 320), (801, 900), (914, 1013)]), u'f3.txt': (4, [(2525, 2624), (2856, 3071)])}
+<1542594429.22> main thread -> 172.16.1.13's missing files: {u'f2.txt': [(0, 541), (642, 1168), (1269, 1864), (1965, 2047)], u'f1.txt': [(321, 800), (901, 913), (1014, 1023)], u'f3.txt': [(0, 2524), (2625, 2855)]}
+<1542594429.22> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'f2.txt': [(1269, 1362)], u'f1.txt': [(321, 800), (901, 913), (1014, 1023)]}, u'172.16.1.12': {u'f2.txt': [(0, 541), (642, 1168), (1269, 1864), (1965, 2047)], u'f1.txt': [(901, 913), (1014, 1023)], u'f3.txt': [(0, 2524), (2625, 2855)]}}
+<1542594429.22> Thread thread1 -> 172.16.1.13 trying to get file f2.txt and offsets: (1269, 1362) from 172.16.1.11
+<1542594429.22> Thread thread2 -> 172.16.1.13 trying to get file f1.txt and offsets: (1014, 1023) from 172.16.1.12
+<1542594429.22> Thread thread2 -> 172.16.1.13 got file f1.txt and offsets: (1014, 1023) from 172.16.1.12
+<1542594429.23> Thread thread2 -> 172.16.1.13 successfully updated file f1.txt with offsets: [(0, 320), (801, 900), (914, 1023)]
+<1542594429.25> Thread thread1 -> 172.16.1.13 got file f2.txt and offsets: (1269, 1362) from 172.16.1.11
+<1542594429.28> Thread thread1 -> 172.16.1.13 successfully updated file f2.txt with offsets: [(542, 641), (1169, 1362), (1865, 1964)]
+<1542594434.26> main thread -> 172.16.1.13's current files: {u'f4.txt': (0, [(0, 4095)]), u'f2.txt': (4, [(542, 641), (1169, 1362), (1865, 1964)]), u'f1.txt': (8, [(0, 320), (801, 900), (914, 1023)]), u'f3.txt': (4, [(2525, 2624), (2856, 3071)])}
+<1542594434.26> main thread -> 172.16.1.13's missing files: {u'f2.txt': [(0, 541), (642, 1168), (1363, 1864), (1965, 2047)], u'f1.txt': [(321, 800), (901, 913)], u'f3.txt': [(0, 2524), (2625, 2855)]}
+<1542594434.26> main thread -> Nodes that contain the missing files of 172.16.1.13: {u'172.16.1.11': {u'f1.txt': [(321, 800), (901, 913)]}, u'172.16.1.12': {u'f2.txt': [(0, 541), (642, 1168), (1363, 1864), (1965, 2047)], u'f1.txt': [(901, 913)], u'f3.txt': [(0, 2524), (2625, 2855)]}}
+<1542594434.26> Thread thread1 -> 172.16.1.13 trying to get file f1.txt and offsets: (901, 913) from 172.16.1.11
+<1542594434.26> Thread thread2 -> 172.16.1.13 trying to get file f3.txt and offsets: (2698, 2797) from 172.16.1.12
+<1542594434.26> Thread thread1 -> 172.16.1.13 got file f1.txt and offsets: (901, 913) from 172.16.1.11
+<1542594434.27> Thread thread1 -> 172.16.1.13 successfully updated file f1.txt with offsets: [(0, 320), (801, 1023)]
+<1542594434.29> Thread thread2 -> 172.16.1.13 got file f3.txt and offsets: (2698, 2797) from 172.16.1.12
+<1542594434.31> Thread thread2 -> 172.16.1.13 successfully updated file f3.txt with offsets: [(2525, 2624), (2698, 2797), (2856, 3071)]
+<1542594439.29> main thread -> 172.16.1.13's current files: {u'f4.txt': (0, [(0, 4095)]), u'f2.txt': (4, [(542, 641), (1169, 1362), (1865, 1964)]), u'n1.f1.tx
